@@ -1,33 +1,103 @@
-import { Tabs } from 'expo-router';
-import React from 'react';
+import { Tabs } from "expo-router";
+import { View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  Home,
+  ShieldAlert,
+  Pill,
+  Baby,
+  Activity,
+} from "lucide-react-native";
+import { colors, fonts } from "@/theme";
 
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+function EmergencyTabIcon({ color }: { color: string }) {
+  return (
+    <View>
+      <ShieldAlert size={24} color={color} strokeWidth={1.8} />
+      <View
+        style={{
+          position: "absolute",
+          top: -2,
+          right: -2,
+          width: 6,
+          height: 6,
+          borderRadius: 3,
+          backgroundColor: colors.danger.DEFAULT,
+        }}
+      />
+    </View>
+  );
+}
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const { bottom } = useSafeAreaInsets();
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false,
-        tabBarButton: HapticTab,
-      }}>
+        tabBarActiveTintColor: colors.brand.DEFAULT,
+        tabBarInactiveTintColor: colors.text.muted,
+        tabBarStyle: {
+          backgroundColor: "#FFFFFF",
+          borderTopWidth: 1,
+          borderTopColor: colors.border.DEFAULT,
+          height: 64 + bottom,
+          paddingBottom: bottom,
+          paddingTop: 8,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.05,
+          shadowRadius: 8,
+          elevation: 8,
+        },
+        tabBarLabelStyle: {
+          fontFamily: fonts.medium,
+          fontSize: 11,
+        },
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Tong quan',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="heart.text.square.fill" color={color} />,
+          title: "Trang chủ",
+          tabBarIcon: ({ color }) => (
+            <Home size={24} color={color} strokeWidth={1.8} />
+          ),
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="emergency-card"
         options={{
-          title: 'Tinh nang',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="square.grid.2x2.fill" color={color} />,
+          title: "Thẻ khẩn",
+          tabBarIcon: ({ color }) => <EmergencyTabIcon color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="med-manager"
+        options={{
+          title: "Thuốc",
+          tabBarIcon: ({ color }) => (
+            <Pill size={24} color={color} strokeWidth={1.8} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="child-growth"
+        options={{
+          title: "Trẻ em",
+          tabBarIcon: ({ color }) => (
+            <Baby size={24} color={color} strokeWidth={1.8} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="health-dashboard"
+        options={{
+          title: "Sức khỏe",
+          tabBarIcon: ({ color }) => (
+            <Activity size={24} color={color} strokeWidth={1.8} />
+          ),
         }}
       />
     </Tabs>
