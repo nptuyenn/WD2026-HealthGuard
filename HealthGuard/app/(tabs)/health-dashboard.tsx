@@ -1,30 +1,45 @@
-import { View, Text, StyleSheet } from "react-native";
+import { useRef } from "react";
+import { ScrollView, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { colors, fonts } from "@/theme";
+import Animated, { FadeInUp } from "react-native-reanimated";
+import BottomSheet from "@gorhom/bottom-sheet";
+import { colors, spacing } from "@/theme";
+import MetricCardRow from "@/components/health-dashboard/MetricCardRow";
+import MainChart from "@/components/health-dashboard/MainChart";
+import AIInsightCard from "@/components/health-dashboard/AIInsightCard";
+import MetricForm from "@/components/health-dashboard/MetricForm";
 
-export default function HealthDashboard() {
+export default function HealthDashboardScreen() {
+  const metricFormRef = useRef<BottomSheet>(null);
+
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      <View style={styles.content}>
-        <Text style={styles.title}>Sức khỏe</Text>
-        <Text style={styles.subtitle}>Health Dashboard — coming soon</Text>
-      </View>
+    <SafeAreaView style={s.safe} edges={["top"]}>
+      <ScrollView
+        style={s.scroll}
+        contentContainerStyle={s.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <Animated.View style={s.section} entering={FadeInUp.duration(300).delay(0)}>
+          <MetricCardRow />
+        </Animated.View>
+
+        <Animated.View style={s.section} entering={FadeInUp.duration(300).delay(150)}>
+          <MainChart />
+        </Animated.View>
+
+        <Animated.View style={s.section} entering={FadeInUp.duration(300).delay(300)}>
+          <AIInsightCard onAddMetric={() => metricFormRef.current?.expand()} />
+        </Animated.View>
+      </ScrollView>
+
+      <MetricForm ref={metricFormRef} />
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.surface.DEFAULT },
-  content: { flex: 1, alignItems: "center", justifyContent: "center" },
-  title: {
-    fontSize: 22,
-    fontFamily: fonts.bold,
-    color: colors.text.DEFAULT,
-  },
-  subtitle: {
-    fontSize: 14,
-    fontFamily: fonts.regular,
-    color: colors.text.secondary,
-    marginTop: 4,
-  },
+const s = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.surface.DEFAULT },
+  scroll: { flex: 1 },
+  content: { paddingBottom: spacing["4xl"] },
+  section: { marginVertical: spacing.sm },
 });

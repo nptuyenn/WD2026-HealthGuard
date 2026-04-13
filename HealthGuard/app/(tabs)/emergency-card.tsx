@@ -1,30 +1,41 @@
-import { View, Text, StyleSheet } from "react-native";
+import { useRef } from "react";
+import { ScrollView, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { colors, fonts } from "@/theme";
+import BottomSheet from "@gorhom/bottom-sheet";
+import { colors } from "@/theme";
+import CardPreview3D from "@/components/emergency/CardPreview3D";
+import EmergencyForm from "@/components/emergency/EmergencyForm";
+import QRShareSheet from "@/components/emergency/QRShareSheet";
 
-export default function EmergencyCard() {
+export default function EmergencyCardScreen() {
+  const qrSheetRef = useRef<BottomSheet>(null);
+
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      <View style={styles.content}>
-        <Text style={styles.title}>Thẻ khẩn cấp</Text>
-        <Text style={styles.subtitle}>Emergency Card — coming soon</Text>
-      </View>
+    <SafeAreaView style={styles.safe} edges={["top"]}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <CardPreview3D />
+        <EmergencyForm onShareQR={() => qrSheetRef.current?.expand()} />
+      </ScrollView>
+
+      <QRShareSheet ref={qrSheetRef} />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.surface.DEFAULT },
-  content: { flex: 1, alignItems: "center", justifyContent: "center" },
-  title: {
-    fontSize: 22,
-    fontFamily: fonts.bold,
-    color: colors.text.DEFAULT,
+  safe: {
+    flex: 1,
+    backgroundColor: colors.surface.DEFAULT,
   },
-  subtitle: {
-    fontSize: 14,
-    fontFamily: fonts.regular,
-    color: colors.text.secondary,
-    marginTop: 4,
+  scroll: {
+    flex: 1,
+  },
+  content: {
+    paddingBottom: 40,
   },
 });
