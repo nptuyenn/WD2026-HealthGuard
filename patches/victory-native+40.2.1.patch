@@ -1,0 +1,64 @@
+diff --git a/node_modules/victory-native/src/cartesian/CartesianChart.tsx b/node_modules/victory-native/src/cartesian/CartesianChart.tsx
+index 5b8300d..6b6af8b 100644
+--- a/node_modules/victory-native/src/cartesian/CartesianChart.tsx
++++ b/node_modules/victory-native/src/cartesian/CartesianChart.tsx
+@@ -1,5 +1,5 @@
+ import * as React from "react";
+-import { type LayoutChangeEvent } from "react-native";
++import { View, type LayoutChangeEvent } from "react-native";
+ import { Canvas, Group, rect } from "@shopify/react-native-skia";
+ import { useSharedValue } from "react-native-reanimated";
+ import {
+@@ -344,28 +344,31 @@ export function CartesianChart<
+   );
+ 
+   // Body of the chart.
++  // Fabric (new arch) rejects onLayout on <Canvas>, so we put it on a wrapping <View>.
+   const body = (
+-    <Canvas style={{ flex: 1 }} onLayout={onLayout}>
+-      {hasMeasuredLayoutSize && (
+-        <>
+-          {axisOptions ? (
+-            <CartesianAxis
+-              {...{
+-                ...axisOptions,
+-                xScale,
+-                yScale,
+-                isNumericalData,
+-                ix: _tData.ix,
+-              }}
+-            />
+-          ) : null}
+-        </>
+-      )}
+-      <Group clip={clipRect}>
+-        {hasMeasuredLayoutSize && children(renderArg)}
+-      </Group>
+-      {hasMeasuredLayoutSize && renderOutside?.(renderArg)}
+-    </Canvas>
++    <View style={{ flex: 1 }} onLayout={onLayout}>
++      <Canvas style={{ flex: 1 }}>
++        {hasMeasuredLayoutSize && (
++          <>
++            {axisOptions ? (
++              <CartesianAxis
++                {...{
++                  ...axisOptions,
++                  xScale,
++                  yScale,
++                  isNumericalData,
++                  ix: _tData.ix,
++                }}
++              />
++            ) : null}
++          </>
++        )}
++        <Group clip={clipRect}>
++          {hasMeasuredLayoutSize && children(renderArg)}
++        </Group>
++        {hasMeasuredLayoutSize && renderOutside?.(renderArg)}
++      </Canvas>
++    </View>
+   );
+ 
+   // Conditionally wrap the body in gesture handler based on activePressSharedValue
