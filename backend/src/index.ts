@@ -7,6 +7,9 @@ import { meRouter } from "./routes/me";
 import { profilesRouter } from "./routes/profiles";
 import { emergencyCardsRouter } from "./routes/emergency-cards";
 import { emergencyPublicRouter } from "./routes/emergency-public";
+import { medicationsRouter } from "./routes/medications";
+import { medicationLogsRouter } from "./routes/medication-logs";
+import { appointmentsRouter } from "./routes/appointments";
 import { errorHandler } from "./middleware/error";
 
 const app = express();
@@ -21,6 +24,9 @@ app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/me", meRouter);
 app.use("/api/v1/profiles", profilesRouter);
 app.use("/api/v1/profiles/:profileId/emergency-card", emergencyCardsRouter);
+app.use("/api/v1/profiles/:profileId/medications", medicationsRouter);
+app.use("/api/v1/profiles/:profileId/appointments", appointmentsRouter);
+app.use("/api/v1/medication-logs", medicationLogsRouter);
 app.use("/emergency", emergencyPublicRouter);
 
 app.use(errorHandler);

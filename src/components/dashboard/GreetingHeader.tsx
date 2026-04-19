@@ -1,6 +1,7 @@
-import { View, Text, Pressable, StyleSheet } from "react-native";
-import { Bell } from "lucide-react-native";
+import { View, Text, Pressable, StyleSheet, Alert } from "react-native";
+import { Bell, LogOut } from "lucide-react-native";
 import { colors, fonts, fontSizes } from "@/theme";
+import { useAuth } from "@/store/auth";
 import { mockNotifications } from "@/lib/mock-data";
 
 function getGreeting(hour: number): string {
@@ -11,20 +12,18 @@ function getGreeting(hour: number): string {
 }
 
 function formatVietnameseDate(date: Date): string {
-  const days = [
-    "Chủ nhật",
-    "Thứ hai",
-    "Thứ ba",
-    "Thứ tư",
-    "Thứ năm",
-    "Thứ sáu",
-    "Thứ bảy",
-  ];
-  const dayName = days[date.getDay()];
-  const d = date.getDate();
-  const m = date.getMonth() + 1;
-  const y = date.getFullYear();
-  return `${dayName}, ${d} tháng ${m}, ${y}`;
+  const days = ["Chủ nhật", "Thứ hai", "Thứ ba", "Thứ tư", "Thứ năm", "Thứ sáu", "Thứ bảy"];
+  return `${days[date.getDay()]}, ${date.getDate()} tháng ${date.getMonth() + 1}, ${date.getFullYear()}`;
+}
+
+function initials(name: string) {
+  const parts = name.trim().split(/\s+/);
+  return (parts[0]?.[0] ?? "").toUpperCase() + (parts.at(-1)?.[0] ?? "").toUpperCase();
+}
+
+function firstName(name: string) {
+  const parts = name.trim().split(/\s+/);
+  return parts.at(-1) ?? name;
 }
 
 interface Props {
@@ -32,32 +31,48 @@ interface Props {
 }
 
 export default function GreetingHeader({ onNotificationPress }: Props) {
+  const user = useAuth((s) => s.user);
+  const logout = useAuth((s) => s.logout);
+
+  const fullName = user?.profiles?.[0]?.fullName ?? user?.email ?? "bạn";
+  const display = firstName(fullName);
+
   const now = new Date();
-  const hour = now.getHours();
-  const greeting = getGreeting(hour);
+  const greeting = getGreeting(now.getHours());
   const dateLabel = formatVietnameseDate(now);
   const unreadCount = mockNotifications.filter((n) => !n.isRead).length;
+
+  const handleLogout = () =>
+    Alert.alert("Đăng xuất", "Bạn có chắc muốn đăng xuất?", [
+      { text: "Hủy", style: "cancel" },
+      { text: "Đăng xuất", style: "destructive", onPress: () => logout() },
+    ]);
 
   return (
     <View style={styles.container}>
       <View style={styles.left}>
         <View style={styles.avatar}>
-          <Text style={styles.avatarText}>NM</Text>
+          <Text style={styles.avatarText}>{initials(fullName)}</Text>
         </View>
         <View>
-          <Text style={styles.greetingText}>Chào {greeting}, Minh</Text>
+          <Text style={styles.greetingText}>Chào {greeting}, {display}</Text>
           <Text style={styles.dateText}>{dateLabel}</Text>
         </View>
       </View>
 
-      <Pressable onPress={onNotificationPress} style={styles.bellWrapper}>
-        <Bell size={24} color={colors.text.secondary} strokeWidth={1.8} />
-        {unreadCount > 0 && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{unreadCount}</Text>
-          </View>
-        )}
-      </Pressable>
+      <View style={styles.actions}>
+        <Pressable onPress={onNotificationPress} style={styles.iconBtn}>
+          <Bell size={22} color={colors.text.secondary} strokeWidth={1.8} />
+          {unreadCount > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{unreadCount}</Text>
+            </View>
+          )}
+        </Pressable>
+        <Pressable onPress={handleLogout} style={styles.iconBtn}>
+          <LogOut size={22} color={colors.danger.DEFAULT} strokeWidth={1.8} />
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -69,11 +84,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 16,
   },
-  left: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
+  left: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
   avatar: {
     width: 40,
     height: 40,
@@ -97,7 +108,8 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     color: colors.text.secondary,
   },
-  bellWrapper: {
+  actions: { flexDirection: "row", alignItems: "center", gap: 4 },
+  iconBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -106,11 +118,12 @@ const styles = StyleSheet.create({
   },
   badge: {
     position: "absolute",
-    top: -2,
-    right: -2,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    top: 6,
+    right: 6,
+    minWidth: 16,
+    height: 16,
+    paddingHorizontal: 3,
+    borderRadius: 8,
     backgroundColor: colors.danger.DEFAULT,
     justifyContent: "center",
     alignItems: "center",

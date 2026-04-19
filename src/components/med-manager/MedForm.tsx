@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Switch,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import BottomSheet, {
   BottomSheetScrollView,
@@ -15,12 +16,17 @@ import BottomSheet, {
 } from "@gorhom/bottom-sheet";
 import { ChevronDown } from "lucide-react-native";
 import { colors, fonts, fontSizes, radius } from "@/theme";
+import type { MedicationInput } from "@/lib/medications-api";
 
 const UNITS = ["mg", "ml", "viên", "giọt", "IU"];
-const FREQUENCIES = ["1 lần/ngày", "2 lần/ngày", "3 lần/ngày", "Khi cần", "Tùy chỉnh"];
+
+export type MedFormSubmit = {
+  input: MedicationInput;
+  reminderOn: boolean;
+};
 
 interface Props {
-  onSave?: (med: any) => void;
+  onSave: (data: MedFormSubmit) => Promise<void>;
 }
 
 const MedForm = forwardRef<BottomSheet, Props>(({ onSave }, ref) => {
@@ -28,38 +34,67 @@ const MedForm = forwardRef<BottomSheet, Props>(({ onSave }, ref) => {
   const [dose, setDose] = useState("");
   const [note, setNote] = useState("");
   const [unitIdx, setUnitIdx] = useState(0);
-  const [freqIdx, setFreqIdx] = useState(0);
+  const [times, setTimes] = useState("07:30");
+  const [stock, setStock] = useState("");
   const [reminder, setReminder] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   const renderBackdrop = (props: BottomSheetBackdropProps) => (
     <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.4} />
   );
 
   const cycleUnit = () => setUnitIdx((i) => (i + 1) % UNITS.length);
-  const cycleFreq = () => setFreqIdx((i) => (i + 1) % FREQUENCIES.length);
 
-  const handleSubmit = () => {
+  const reset = () => {
+    setName(""); setDose(""); setNote(""); setUnitIdx(0); setTimes("07:30"); setStock("");
+  };
+
+  const parseTimes = (raw: string): string[] | null => {
+    const parts = raw.split(",").map((t) => t.trim()).filter(Boolean);
+    if (parts.length === 0) return null;
+    const re = /^([01]\d|2[0-3]):[0-5]\d$/;
+    for (const p of parts) if (!re.test(p)) return null;
+    return parts;
+  };
+
+  const handleSubmit = async () => {
     if (!name.trim()) {
-      Alert.alert("Vui lòng nhập tên thuốc");
+      Alert.alert("Thiếu thông tin", "Vui lòng nhập tên thuốc.");
       return;
     }
-    const med = {
-      id: Date.now().toString(),
-      name: name.trim(),
-      dosage: dose.trim(),
-      unit: UNITS[unitIdx],
-      frequency: FREQUENCIES[freqIdx],
-      instructions: note.trim(),
-      timesPerDay: ["07:30"],
-    };
-    onSave?.(med);
-    // reset
-    setName("");
-    setDose("");
-    setNote("");
-    setUnitIdx(0);
-    setFreqIdx(0);
-    (ref as React.RefObject<BottomSheet>).current?.close();
+    const parsed = parseTimes(times);
+    if (!parsed) {
+      Alert.alert("Giờ không hợp lệ", "Định dạng HH:MM, cách nhau dấu phẩy. VD: 07:30, 19:30");
+      return;
+    }
+
+    const stockN = stock ? parseInt(stock, 10) : null;
+    if (stock && (Number.isNaN(stockN!) || stockN! < 0)) {
+      Alert.alert("Số lượng không hợp lệ");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await onSave({
+        input: {
+          name: name.trim(),
+          dosage: dose.trim() || null,
+          unit: UNITS[unitIdx],
+          instructions: note.trim() || null,
+          stockTotal: stockN,
+          stockRemaining: stockN,
+          schedules: [{ timesOfDay: parsed }],
+        },
+        reminderOn: reminder,
+      });
+      reset();
+      (ref as React.RefObject<BottomSheet>).current?.close();
+    } catch (err: any) {
+      Alert.alert("Lỗi", err?.message ?? "Không lưu được thuốc.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -80,10 +115,11 @@ const MedForm = forwardRef<BottomSheet, Props>(({ onSave }, ref) => {
             <Text style={s.label}>Tên thuốc</Text>
             <TextInput
               style={s.input}
-              placeholder="Nhập tên thuốc..."
+              placeholder="VD: Paracetamol"
               placeholderTextColor={colors.text.muted}
               value={name}
               onChangeText={setName}
+              editable={!submitting}
             />
           </View>
 
@@ -92,11 +128,12 @@ const MedForm = forwardRef<BottomSheet, Props>(({ onSave }, ref) => {
             <View style={s.row}>
               <TextInput
                 style={[s.input, { flex: 1 }]}
-                placeholder="Liều"
+                placeholder="VD: 500"
                 keyboardType="numeric"
                 placeholderTextColor={colors.text.muted}
                 value={dose}
                 onChangeText={setDose}
+                editable={!submitting}
               />
               <Pressable style={s.unitSelect} onPress={cycleUnit}>
                 <Text style={s.unitText}>{UNITS[unitIdx]}</Text>
@@ -106,19 +143,28 @@ const MedForm = forwardRef<BottomSheet, Props>(({ onSave }, ref) => {
           </View>
 
           <View style={s.field}>
-            <Text style={s.label}>Tần suất</Text>
-            <Pressable style={s.selectBox} onPress={cycleFreq}>
-              <Text style={s.selectText}>{FREQUENCIES[freqIdx]}</Text>
-              <ChevronDown size={16} color={colors.text.muted} strokeWidth={1.8} />
-            </Pressable>
+            <Text style={s.label}>Giờ uống (HH:MM, cách nhau dấu phẩy)</Text>
+            <TextInput
+              style={s.input}
+              placeholder="VD: 07:30, 19:30"
+              placeholderTextColor={colors.text.muted}
+              value={times}
+              onChangeText={setTimes}
+              editable={!submitting}
+            />
           </View>
 
           <View style={s.field}>
-            <Text style={s.label}>Giờ uống</Text>
-            <Pressable style={s.selectBox} onPress={() => Alert.alert("Chọn giờ uống")}>
-              <Text style={s.selectText}>07:30</Text>
-              <ChevronDown size={16} color={colors.text.muted} strokeWidth={1.8} />
-            </Pressable>
+            <Text style={s.label}>Số lượng trong tủ</Text>
+            <TextInput
+              style={s.input}
+              placeholder="VD: 30"
+              keyboardType="numeric"
+              placeholderTextColor={colors.text.muted}
+              value={stock}
+              onChangeText={setStock}
+              editable={!submitting}
+            />
           </View>
 
           <View style={s.field}>
@@ -129,31 +175,17 @@ const MedForm = forwardRef<BottomSheet, Props>(({ onSave }, ref) => {
               placeholderTextColor={colors.text.muted}
               value={note}
               onChangeText={setNote}
+              editable={!submitting}
             />
           </View>
 
-          <View style={s.field}>
-            <Text style={s.label}>Ngày bắt đầu</Text>
-            <Pressable style={s.selectBox} onPress={() => Alert.alert("Chọn ngày bắt đầu")}>
-              <Text style={s.selectText}>13/04/2026</Text>
-              <ChevronDown size={16} color={colors.text.muted} strokeWidth={1.8} />
-            </Pressable>
-          </View>
-
-          <View style={s.field}>
-            <Text style={s.label}>Ngày kết thúc</Text>
-            <Pressable style={s.selectBox} onPress={() => Alert.alert("Chọn ngày kết thúc")}>
-              <Text style={[s.selectText, { color: colors.text.muted }]}>Không thời hạn</Text>
-              <ChevronDown size={16} color={colors.text.muted} strokeWidth={1.8} />
-            </Pressable>
-          </View>
-
           <View style={s.reminderRow}>
-            <Text style={s.label}>Nhắc nhở</Text>
+            <Text style={s.label}>Nhắc nhở (push thông báo)</Text>
             <Switch
               value={reminder}
               onValueChange={setReminder}
               trackColor={{ false: colors.border.DEFAULT, true: colors.brand.DEFAULT }}
+              disabled={submitting}
             />
           </View>
         </View>
@@ -162,11 +194,20 @@ const MedForm = forwardRef<BottomSheet, Props>(({ onSave }, ref) => {
           <Pressable
             style={s.btnCancel}
             onPress={() => (ref as React.RefObject<BottomSheet>).current?.close()}
+            disabled={submitting}
           >
             <Text style={s.btnCancelText}>Hủy</Text>
           </Pressable>
-          <Pressable style={s.btnSubmit} onPress={handleSubmit}>
-            <Text style={s.btnSubmitText}>Thêm thuốc</Text>
+          <Pressable
+            style={[s.btnSubmit, submitting && { opacity: 0.6 }]}
+            onPress={handleSubmit}
+            disabled={submitting}
+          >
+            {submitting ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={s.btnSubmitText}>Thêm thuốc</Text>
+            )}
           </Pressable>
         </View>
       </BottomSheetScrollView>
@@ -210,21 +251,7 @@ const s = StyleSheet.create({
     padding: 12,
   },
   unitText: { fontFamily: fonts.regular, fontSize: fontSizes.base, color: colors.text.DEFAULT },
-  selectBox: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: colors.border.DEFAULT,
-    borderRadius: radius.sm,
-    padding: 12,
-  },
-  selectText: { fontSize: fontSizes.base, color: colors.text.DEFAULT, fontFamily: fonts.regular },
-  reminderRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
+  reminderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   btnRow: { flexDirection: "row", gap: 12, marginTop: 24 },
   btnCancel: {
     flex: 1,

@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(npm install *)",
-      "Bash(xargs ls *)"
+      "Bash(xargs ls *)",
+      "Bash(npx prisma *)",
+      "Bash(npx tsc *)"
     ]
   }
 }
