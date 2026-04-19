@@ -9,8 +9,20 @@ import Animated, {
 import { shadows, radius } from "@/theme";
 import CardFront from "./CardFront";
 import CardBack from "./CardBack";
+import type { EmergencyContact } from "@/lib/emergency-api";
 
-export default function CardPreview3D() {
+type Props = {
+  fullName: string;
+  dob: string | null;
+  bloodType: string | null;
+  primaryContact: EmergencyContact | null;
+  publicToken: string | null;
+  allergies: string[];
+  conditions: string[];
+  notes: string | null;
+};
+
+export default function CardPreview3D(props: Props) {
   const rotation = useSharedValue(0);
   const isFlipped = useSharedValue(false);
 
@@ -27,12 +39,7 @@ export default function CardPreview3D() {
     left: 0,
     right: 0,
     bottom: 0,
-    opacity: interpolate(
-      rotation.value,
-      [89, 91],
-      [1, 0],
-      Extrapolation.CLAMP
-    ),
+    opacity: interpolate(rotation.value, [89, 91], [1, 0], Extrapolation.CLAMP),
   }));
 
   const backStyle = useAnimatedStyle(() => ({
@@ -43,26 +50,29 @@ export default function CardPreview3D() {
     left: 0,
     right: 0,
     bottom: 0,
-    opacity: interpolate(
-      rotation.value,
-      [89, 91],
-      [0, 1],
-      Extrapolation.CLAMP
-    ),
+    opacity: interpolate(rotation.value, [89, 91], [0, 1], Extrapolation.CLAMP),
   }));
 
   return (
     <View style={styles.container}>
       <Pressable onPress={flipCard} style={styles.cardOuter}>
-        {/* Shadow wrapper — overflow visible để shadow hiện */}
         <View style={styles.shadow}>
-          {/* Clip wrapper — overflow hidden để bo góc */}
           <View style={styles.clip}>
             <Animated.View style={frontStyle}>
-              <CardFront />
+              <CardFront
+                fullName={props.fullName}
+                dob={props.dob}
+                bloodType={props.bloodType}
+                primaryContact={props.primaryContact}
+                publicToken={props.publicToken}
+              />
             </Animated.View>
             <Animated.View style={backStyle}>
-              <CardBack />
+              <CardBack
+                allergies={props.allergies}
+                conditions={props.conditions}
+                notes={props.notes}
+              />
             </Animated.View>
           </View>
         </View>
@@ -72,23 +82,8 @@ export default function CardPreview3D() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    alignItems: "center",
-    padding: 24,
-  },
-  cardOuter: {
-    width: "100%",
-    maxWidth: 340,
-    aspectRatio: 1.586,
-  },
-  shadow: {
-    flex: 1,
-    borderRadius: radius.lg,
-    ...shadows.cardHover,
-  },
-  clip: {
-    flex: 1,
-    borderRadius: radius.lg,
-    overflow: "hidden",
-  },
+  container: { alignItems: "center", padding: 24 },
+  cardOuter: { width: "100%", maxWidth: 340, aspectRatio: 1.586 },
+  shadow: { flex: 1, borderRadius: radius.lg, ...shadows.cardHover },
+  clip: { flex: 1, borderRadius: radius.lg, overflow: "hidden" },
 });
