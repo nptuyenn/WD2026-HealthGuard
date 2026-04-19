@@ -10,6 +10,9 @@ import { emergencyPublicRouter } from "./routes/emergency-public";
 import { medicationsRouter } from "./routes/medications";
 import { medicationLogsRouter } from "./routes/medication-logs";
 import { appointmentsRouter } from "./routes/appointments";
+import { vaccinationsRouter } from "./routes/vaccinations";
+import { growthRecordsRouter } from "./routes/growth-records";
+import { healthMetricsRouter } from "./routes/health-metrics";
 import { errorHandler } from "./middleware/error";
 
 const app = express();
@@ -26,6 +29,9 @@ app.use("/api/v1/profiles", profilesRouter);
 app.use("/api/v1/profiles/:profileId/emergency-card", emergencyCardsRouter);
 app.use("/api/v1/profiles/:profileId/medications", medicationsRouter);
 app.use("/api/v1/profiles/:profileId/appointments", appointmentsRouter);
+app.use("/api/v1/profiles/:profileId/vaccinations", vaccinationsRouter);
+app.use("/api/v1/profiles/:profileId/growth-records", growthRecordsRouter);
+app.use("/api/v1/profiles/:profileId/metrics", healthMetricsRouter);
 app.use("/api/v1/medication-logs", medicationLogsRouter);
 app.use("/emergency", emergencyPublicRouter);
 

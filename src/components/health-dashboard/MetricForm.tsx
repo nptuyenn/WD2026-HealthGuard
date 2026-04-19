@@ -1,4 +1,4 @@
-import { forwardRef, useState } from "react";
+import { forwardRef, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   Pressable,
   StyleSheet,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import BottomSheet, {
   BottomSheetScrollView,
@@ -14,33 +15,81 @@ import BottomSheet, {
 } from "@gorhom/bottom-sheet";
 import { ChevronDown } from "lucide-react-native";
 import { colors, fonts, fontSizes, radius } from "@/theme";
+import { METRIC_META, type MetricInput, type MetricType } from "@/lib/health-metrics-api";
 
-type MetricType = "Huyết áp" | "Đường huyết" | "Nhịp tim" | "Cân nặng" | "SpO2" | "Nhiệt độ";
+const PICKABLE: MetricType[] = [
+  "blood_pressure",
+  "glucose",
+  "heart_rate",
+  "weight",
+  "spo2",
+  "temperature",
+];
 
-const METRIC_UNITS: Record<MetricType, string> = {
-  "Huyết áp": "mmHg",
-  "Đường huyết": "mmol/L",
-  "Nhịp tim": "bpm",
-  "Cân nặng": "kg",
-  "SpO2": "%",
-  "Nhiệt độ": "°C",
-};
+interface Props {
+  onSave: (input: MetricInput) => Promise<void>;
+}
 
-const METRICS: MetricType[] = Object.keys(METRIC_UNITS) as MetricType[];
-
-const MetricForm = forwardRef<BottomSheet, object>((_props, ref) => {
-  const [metricType, setMetricType] = useState<MetricType>("Huyết áp");
+const MetricForm = forwardRef<BottomSheet, Props>(({ onSave }, ref) => {
+  const [metricType, setMetricType] = useState<MetricType>("blood_pressure");
+  const [value1, setValue1] = useState("");
+  const [value2, setValue2] = useState("");
+  const [notes, setNotes] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const renderBackdrop = (props: BottomSheetBackdropProps) => (
     <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.4} />
   );
 
-  const isBP = metricType === "Huyết áp";
-  const unit = METRIC_UNITS[metricType];
+  const isBP = metricType === "blood_pressure";
+  const meta = useMemo(() => METRIC_META[metricType], [metricType]);
 
-  const handleSave = () => {
-    Alert.alert("Thành công", "Đã ghi nhận chỉ số");
-    (ref as React.RefObject<BottomSheet>).current?.close();
+  const reset = () => {
+    setValue1(""); setValue2(""); setNotes("");
+  };
+
+  const pickType = () =>
+    Alert.alert(
+      "Chọn loại chỉ số",
+      undefined,
+      PICKABLE.map((k) => ({
+        text: METRIC_META[k].label,
+        onPress: () => setMetricType(k),
+      })).concat([{ text: "Hủy", onPress: () => {} }])
+    );
+
+  const parse = (s: string) => {
+    const n = parseFloat(s.replace(",", "."));
+    return Number.isFinite(n) ? n : NaN;
+  };
+
+  const handleSubmit = async () => {
+    const v1 = parse(value1);
+    if (Number.isNaN(v1)) return Alert.alert("Thiếu giá trị", "Vui lòng nhập số hợp lệ.");
+    let v2: number | null = null;
+    if (isBP) {
+      const parsed2 = parse(value2);
+      if (Number.isNaN(parsed2)) return Alert.alert("Huyết áp", "Vui lòng nhập cả tâm thu và tâm trương.");
+      v2 = parsed2;
+    }
+
+    setSubmitting(true);
+    try {
+      await onSave({
+        metricType,
+        valueNum: v1,
+        valueNum2: v2,
+        unit: meta.unit,
+        recordedAt: new Date().toISOString(),
+        notes: notes.trim() || null,
+      });
+      reset();
+      (ref as React.RefObject<BottomSheet>).current?.close();
+    } catch (err: any) {
+      Alert.alert("Lỗi", err?.message ?? "Không lưu được chỉ số.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -57,25 +106,15 @@ const MetricForm = forwardRef<BottomSheet, object>((_props, ref) => {
         <Text style={s.title}>Ghi chỉ số mới</Text>
 
         <View style={s.form}>
-          {/* Loại chỉ số */}
           <View style={s.field}>
             <Text style={s.label}>Loại chỉ số</Text>
-            <Pressable
-              style={s.selectBox}
-              onPress={() =>
-                Alert.alert(
-                  "Chọn loại chỉ số",
-                  undefined,
-                  METRICS.map((m) => ({ text: m, onPress: () => setMetricType(m) }))
-                )
-              }
-            >
-              <Text style={s.selectText}>{metricType}</Text>
+            <Pressable style={s.selectBox} onPress={pickType}>
+              <Text style={s.selectText}>{meta.label}</Text>
               <ChevronDown size={16} color={colors.text.muted} strokeWidth={1.8} />
             </Pressable>
+            <Text style={s.hint}>Bình thường: {meta.thresholdText} {meta.unit}</Text>
           </View>
 
-          {/* Giá trị */}
           <View style={s.field}>
             <Text style={s.label}>Giá trị</Text>
             {isBP ? (
@@ -83,57 +122,50 @@ const MetricForm = forwardRef<BottomSheet, object>((_props, ref) => {
                 <TextInput
                   style={[s.valueInput, { flex: 1 }]}
                   placeholder="120"
-                  keyboardType="numeric"
                   placeholderTextColor={colors.text.muted}
-                  fontFamily={fonts.mono}
+                  keyboardType="numeric"
+                  value={value1}
+                  onChangeText={setValue1}
+                  editable={!submitting}
                 />
                 <Text style={s.slashText}>/</Text>
                 <TextInput
                   style={[s.valueInput, { flex: 1 }]}
                   placeholder="80"
-                  keyboardType="numeric"
                   placeholderTextColor={colors.text.muted}
-                  fontFamily={fonts.mono}
+                  keyboardType="numeric"
+                  value={value2}
+                  onChangeText={setValue2}
+                  editable={!submitting}
                 />
-                <Text style={s.unitText}>{unit}</Text>
+                <Text style={s.unitText}>{meta.unit}</Text>
               </View>
             ) : (
               <View style={s.singleValueRow}>
                 <TextInput
                   style={[s.valueInput, { flex: 1, textAlign: "center" }]}
                   placeholder="0"
-                  keyboardType="numeric"
                   placeholderTextColor={colors.text.muted}
-                  fontFamily={fonts.mono}
+                  keyboardType="decimal-pad"
+                  value={value1}
+                  onChangeText={setValue1}
+                  editable={!submitting}
                 />
-                <Text style={s.unitText}>{unit}</Text>
+                <Text style={s.unitText}>{meta.unit}</Text>
               </View>
             )}
           </View>
 
-          {/* Ngày giờ đo */}
-          <View style={s.field}>
-            <Text style={s.label}>Ngày giờ đo</Text>
-            <Pressable
-              style={s.selectBox}
-              onPress={() => Alert.alert("Chọn ngày giờ")}
-            >
-              <Text style={s.selectText}>13/04/2026 — 08:00</Text>
-              <ChevronDown size={16} color={colors.text.muted} strokeWidth={1.8} />
-            </Pressable>
-          </View>
-
-          {/* Ghi chú */}
           <View style={s.field}>
             <Text style={s.label}>Ghi chú</Text>
             <TextInput
-              style={[s.input, { height: 72 }]}
-              placeholder="Ghi chú thêm..."
+              style={[s.input, { height: 72, textAlignVertical: "top" }]}
+              placeholder="Ghi chú thêm... (tùy chọn)"
               placeholderTextColor={colors.text.muted}
               multiline
-              numberOfLines={2}
-              textAlignVertical="top"
-              fontFamily={fonts.regular}
+              value={notes}
+              onChangeText={setNotes}
+              editable={!submitting}
             />
           </View>
         </View>
@@ -142,11 +174,20 @@ const MetricForm = forwardRef<BottomSheet, object>((_props, ref) => {
           <Pressable
             style={s.btnCancel}
             onPress={() => (ref as React.RefObject<BottomSheet>).current?.close()}
+            disabled={submitting}
           >
             <Text style={s.btnCancelText}>Hủy</Text>
           </Pressable>
-          <Pressable style={s.btnSubmit} onPress={handleSave}>
-            <Text style={s.btnSubmitText}>Lưu chỉ số</Text>
+          <Pressable
+            style={[s.btnSubmit, submitting && { opacity: 0.6 }]}
+            onPress={handleSubmit}
+            disabled={submitting}
+          >
+            {submitting ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={s.btnSubmitText}>Lưu chỉ số</Text>
+            )}
           </Pressable>
         </View>
       </BottomSheetScrollView>
@@ -170,6 +211,7 @@ const s = StyleSheet.create({
   form: { gap: 16 },
   field: { gap: 4 },
   label: { fontSize: 12, fontFamily: fonts.medium, color: colors.text.secondary },
+  hint: { fontSize: 11, color: colors.text.muted, fontFamily: fonts.regular, marginTop: 2 },
   input: {
     borderWidth: 1,
     borderColor: colors.border.DEFAULT,

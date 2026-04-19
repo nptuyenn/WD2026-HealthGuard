@@ -1,27 +1,18 @@
-// src/components/health-dashboard/MainChart.tsx
 import { useState, useMemo } from "react";
-import { View, Text, Pressable, StyleSheet, Alert } from "react-native";
+import { View, Text, Pressable, StyleSheet, Alert, useWindowDimensions } from "react-native";
 import {
-  VictoryChart, VictoryLine, VictoryScatter,
-  VictoryAxis, VictoryArea,
+  VictoryChart,
+  VictoryLine,
+  VictoryScatter,
+  VictoryAxis,
+  VictoryArea,
 } from "victory-native";
-import { ChevronDown, Download } from "lucide-react-native";
+import { ChevronDown } from "lucide-react-native";
 import { colors, fonts, fontSizes, radius, shadows } from "@/theme";
-import { mockHealthMetrics } from "@/lib/mock-data";
+import type { MetricSummary, MetricType } from "@/lib/health-metrics-api";
+import { METRIC_META } from "@/lib/health-metrics-api";
 
-const RANGE_OPTS = ["7N", "30N", "3T", "1N"];
-type MetricKey = "bp" | "sugar" | "hr" | "weight";
-const METRIC_LABELS: Record<MetricKey, string> = {
-  bp: "Huyết áp",
-  sugar: "Đường huyết",
-  hr: "Nhịp tim",
-  weight: "Cân nặng",
-};
-
-function formatDateShort(iso: string) {
-  const parts = iso.split("-");
-  return `${parts[2]}/${parts[1]}`;
-}
+const PICKABLE: MetricType[] = ["blood_pressure", "glucose", "heart_rate", "weight", "spo2"];
 
 const AXIS_STYLE = {
   axis: { stroke: colors.border.DEFAULT },
@@ -29,176 +20,114 @@ const AXIS_STYLE = {
   grid: { stroke: colors.border.DEFAULT, strokeDasharray: "4,4", opacity: 0.4 },
 };
 
-export default function MainChart() {
-  const [metric, setMetric] = useState<MetricKey>("bp");
-  const [rangeIdx, setRangeIdx] = useState(0);
+function dayShort(iso: string) {
+  const d = new Date(iso);
+  return `${d.getDate()}/${d.getMonth() + 1}`;
+}
 
-  const bpData = useMemo(() =>
-    mockHealthMetrics.bloodPressure.map((d, i) => ({
-      x: i,
-      systolic: d.systolic,
-      diastolic: d.diastolic,
-      label: formatDateShort(d.date),
-    })), []);
+function normalRangeFor(type: MetricType): [number, number] | null {
+  switch (type) {
+    case "blood_pressure":
+      return [90, 120];
+    case "glucose":
+      return [70, 126];
+    case "heart_rate":
+      return [60, 100];
+    case "spo2":
+      return [95, 100];
+    case "temperature":
+      return [36, 37.5];
+    default:
+      return null;
+  }
+}
 
-  const sugarData = useMemo(() =>
-    mockHealthMetrics.bloodSugar.map((d, i) => ({ x: i, y: d.value })), []);
+type Props = {
+  summary: MetricSummary | null;
+};
 
-  const hrData = useMemo(() =>
-    mockHealthMetrics.heartRate.map((d, i) => ({ x: i, y: d.value })), []);
+export default function MainChart({ summary }: Props) {
+  const { width: screenWidth } = useWindowDimensions();
+  const chartWidth = screenWidth - 64;
+  const [metric, setMetric] = useState<MetricType>("blood_pressure");
 
-  const weightData = useMemo(() =>
-    mockHealthMetrics.weight.map((d, i) => ({ x: i, y: d.value })), []);
+  const entry = summary?.[metric] ?? null;
+  const series = entry?.series ?? [];
 
-  const tickLabels = bpData.map((d) => d.label);
+  const points = useMemo(
+    () => series.map((p, i) => ({ x: i, y: p.valueNum, y2: p.valueNum2, label: dayShort(p.recordedAt) })),
+    [series]
+  );
 
-  const warningCount = metric === "bp"
-    ? bpData.filter((d) => d.systolic > 130).length
-    : metric === "sugar"
-    ? sugarData.filter((d) => d.y > 5.5).length
-    : 0;
-
+  const normal = normalRangeFor(metric);
+  const hasData = points.length > 0;
   const chartHeight = 240;
   const padding = { top: 10, bottom: 30, left: 44, right: 10 };
 
+  const pickMetric = () =>
+    Alert.alert(
+      "Chọn chỉ số",
+      undefined,
+      PICKABLE.map((k) => ({
+        text: METRIC_META[k].label,
+        onPress: () => setMetric(k),
+      })).concat([{ text: "Hủy", onPress: () => {} }])
+    );
+
   return (
     <View style={s.card}>
-      {/* Header */}
       <View style={s.header}>
-        <Pressable
-          style={s.metricPicker}
-          onPress={() =>
-            Alert.alert(
-              "Chọn chỉ số",
-              undefined,
-              (Object.keys(METRIC_LABELS) as MetricKey[]).map((k) => ({
-                text: METRIC_LABELS[k],
-                onPress: () => setMetric(k),
-              }))
-            )
-          }
-        >
-          <Text style={s.metricLabel}>{METRIC_LABELS[metric]}</Text>
+        <Pressable style={s.metricPicker} onPress={pickMetric}>
+          <Text style={s.metricLabel}>{METRIC_META[metric].label}</Text>
           <ChevronDown size={16} color={colors.text.secondary} strokeWidth={1.8} />
         </Pressable>
-
-        <View style={s.rangeRow}>
-          <View style={s.rangeTabs}>
-            {RANGE_OPTS.map((opt, i) => (
-              <Pressable
-                key={opt}
-                style={[s.rangeTab, i === rangeIdx && s.rangeTabActive]}
-                onPress={() => setRangeIdx(i)}
-              >
-                <Text style={[s.rangeText, i === rangeIdx && s.rangeTextActive]}>
-                  {opt}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-          <Pressable style={s.downloadBtn} onPress={() => Alert.alert("Xuất dữ liệu")}>
-            <Download size={16} color={colors.text.secondary} strokeWidth={1.8} />
-          </Pressable>
-        </View>
+        <Text style={s.rangeHint}>{series.length} điểm · 30 ngày qua</Text>
       </View>
 
-      {/* Chart */}
       <View style={s.chartArea}>
-        {metric === "bp" && (
-          <VictoryChart height={chartHeight} padding={padding} domain={{ y: [60, 160] }}>
-            {/* Vùng bình thường */}
-            <VictoryArea
-              data={bpData.map((d) => ({ x: d.x, y: 120, y0: 90 }))}
-              style={{ data: { fill: colors.success.light, opacity: 0.25, stroke: "none" } }}
-            />
+        {!hasData ? (
+          <View style={s.empty}>
+            <Text style={s.emptyText}>Chưa có dữ liệu {METRIC_META[metric].label}</Text>
+          </View>
+        ) : (
+          <VictoryChart
+            width={chartWidth}
+            height={chartHeight}
+            padding={padding}
+          >
+            {normal && (
+              <VictoryArea
+                data={points.map((p) => ({ x: p.x, y: normal[1], y0: normal[0] }))}
+                style={{ data: { fill: colors.success.light, opacity: 0.25, stroke: "none" } }}
+              />
+            )}
             <VictoryAxis
-              tickValues={bpData.map((d) => d.x)}
-              tickFormat={(t) => tickLabels[t] ?? ""}
+              tickValues={points.map((p) => p.x)}
+              tickFormat={(t) => points[t]?.label ?? ""}
               style={AXIS_STYLE}
             />
-            <VictoryAxis dependentAxis tickValues={[70, 90, 110, 130, 150]} style={AXIS_STYLE} />
-            {/* Ngưỡng nguy hiểm */}
+            <VictoryAxis dependentAxis style={AXIS_STYLE} />
+            {metric === "blood_pressure" && (
+              <VictoryLine
+                data={points.map((p) => ({ x: p.x, y: p.y2 ?? 0 }))}
+                style={{ data: { stroke: colors.brand.dark, strokeWidth: 2 } }}
+              />
+            )}
             <VictoryLine
-              data={bpData.map((d) => ({ x: d.x, y: 140 }))}
-              style={{ data: { stroke: colors.danger.DEFAULT, strokeWidth: 1.5, opacity: 0.5, strokeDasharray: "4,4" } }}
-            />
-            <VictoryLine
-              data={bpData.map((d) => ({ x: d.x, y: d.diastolic }))}
-              style={{ data: { stroke: colors.brand.dark, strokeWidth: 2 } }}
-            />
-            <VictoryLine
-              data={bpData.map((d) => ({ x: d.x, y: d.systolic }))}
+              data={points}
               style={{ data: { stroke: colors.brand.DEFAULT, strokeWidth: 2 } }}
             />
             <VictoryScatter
-              data={bpData.map((d) => ({ x: d.x, y: d.systolic }))}
+              data={points}
               size={4}
               style={{ data: { fill: colors.brand.DEFAULT } }}
             />
           </VictoryChart>
         )}
-
-        {metric === "sugar" && (
-          <VictoryChart height={chartHeight} padding={padding}>
-            <VictoryArea
-              data={sugarData.map((d) => ({ x: d.x, y: 5.5, y0: 3.9 }))}
-              style={{ data: { fill: colors.success.light, opacity: 0.25, stroke: "none" } }}
-            />
-            <VictoryAxis style={AXIS_STYLE} />
-            <VictoryAxis dependentAxis style={AXIS_STYLE} />
-            <VictoryLine data={sugarData} style={{ data: { stroke: colors.warning.DEFAULT, strokeWidth: 2 } }} />
-            <VictoryScatter data={sugarData} size={4} style={{ data: { fill: colors.warning.DEFAULT } }} />
-          </VictoryChart>
-        )}
-
-        {metric === "hr" && (
-          <VictoryChart height={chartHeight} padding={padding}>
-            <VictoryArea
-              data={hrData.map((d) => ({ x: d.x, y: 100, y0: 60 }))}
-              style={{ data: { fill: colors.success.light, opacity: 0.25, stroke: "none" } }}
-            />
-            <VictoryAxis style={AXIS_STYLE} />
-            <VictoryAxis dependentAxis style={AXIS_STYLE} />
-            <VictoryLine data={hrData} style={{ data: { stroke: colors.coral.DEFAULT, strokeWidth: 2 } }} />
-            <VictoryScatter data={hrData} size={4} style={{ data: { fill: colors.coral.DEFAULT } }} />
-          </VictoryChart>
-        )}
-
-        {metric === "weight" && (
-          <VictoryChart height={chartHeight} padding={padding}>
-            <VictoryArea
-              data={weightData.map((d) => ({ x: d.x, y: 80, y0: 65 }))}
-              style={{ data: { fill: colors.brand.light, opacity: 0.25, stroke: "none" } }}
-            />
-            <VictoryAxis style={AXIS_STYLE} />
-            <VictoryAxis dependentAxis style={AXIS_STYLE} />
-            <VictoryLine data={weightData} style={{ data: { stroke: colors.brand.DEFAULT, strokeWidth: 2.5 } }} />
-            <VictoryScatter data={weightData} size={4} style={{ data: { fill: colors.brand.DEFAULT } }} />
-          </VictoryChart>
-        )}
       </View>
 
-      {/* Footer */}
       <View style={s.footer}>
-        {metric === "bp" && (
-          <View style={s.legend}>
-            <View style={s.legendItem}>
-              <View style={[s.legendDot, { backgroundColor: colors.brand.DEFAULT }]} />
-              <Text style={s.legendText}>Tâm thu</Text>
-            </View>
-            <View style={s.legendItem}>
-              <View style={[s.legendDash, { backgroundColor: colors.brand.dark }]} />
-              <Text style={s.legendText}>Tâm trương</Text>
-            </View>
-            <View style={s.legendItem}>
-              <View style={[s.legendDot, { backgroundColor: colors.success.DEFAULT }]} />
-              <Text style={s.legendText}>Bình thường</Text>
-            </View>
-          </View>
-        )}
-        {warningCount > 0 && (
-          <Text style={s.warning}>⚠ {warningCount} lần vượt ngưỡng</Text>
-        )}
+        <Text style={s.legendText}>Ngưỡng: {METRIC_META[metric].thresholdText}</Text>
       </View>
     </View>
   );
@@ -215,24 +144,14 @@ const s = StyleSheet.create({
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   metricPicker: { flexDirection: "row", alignItems: "center", gap: 4 },
   metricLabel: { fontFamily: fonts.semibold, fontSize: fontSizes.base, color: colors.text.DEFAULT },
-  rangeRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  rangeTabs: {
+  rangeHint: { fontSize: 11, color: colors.text.muted, fontFamily: fonts.regular },
+  chartArea: { marginTop: 12, alignItems: "center" },
+  empty: { height: 240, justifyContent: "center", alignItems: "center" },
+  emptyText: { color: colors.text.muted, fontFamily: fonts.regular },
+  footer: {
+    marginTop: 8,
     flexDirection: "row",
-    backgroundColor: colors.surface.secondary,
-    borderRadius: radius.sm,
-    padding: 2,
+    justifyContent: "flex-end",
   },
-  rangeTab: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 },
-  rangeTabActive: { backgroundColor: colors.surface.card, ...shadows.card },
-  rangeText: { fontSize: 12, color: colors.text.secondary, fontFamily: fonts.regular },
-  rangeTextActive: { color: colors.brand.DEFAULT, fontFamily: fonts.medium },
-  downloadBtn: { padding: 4 },
-  chartArea: { height: 240, marginTop: 16 },
-  footer: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 8 },
-  legend: { flexDirection: "row", gap: 12 },
-  legendItem: { flexDirection: "row", alignItems: "center", gap: 4 },
-  legendDot: { width: 8, height: 8, borderRadius: 4 },
-  legendDash: { width: 16, height: 2 },
   legendText: { fontSize: 11, color: colors.text.muted, fontFamily: fonts.regular },
-  warning: { fontSize: 11, color: colors.warning.DEFAULT, fontFamily: fonts.medium },
 });

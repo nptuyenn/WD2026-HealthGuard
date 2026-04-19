@@ -1,37 +1,74 @@
-import { View, Text, StyleSheet } from "react-native";
-import Animated, { useSharedValue, useAnimatedStyle, withTiming } from "react-native-reanimated";
 import { useEffect } from "react";
-import { colors, fonts, radius } from "@/theme";
+import { View, Text, Pressable, StyleSheet, ActivityIndicator } from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+} from "react-native-reanimated";
+import { Syringe } from "lucide-react-native";
+import { colors, fonts, fontSizes, radius } from "@/theme";
 import VaccinationGroup from "./VaccinationGroup";
-import { mockVaccinations } from "@/lib/mock-data";
-import type { VaccinationRecord } from "./VaccinationItem";
+import type { Vaccination } from "@/lib/child-growth-api";
 
-export default function VaccinationTracker({ childId }: { childId: string }) {
-  const childVax = mockVaccinations.filter((v) => v.childId === childId) as VaccinationRecord[];
-  const completed = childVax.filter((v) => v.status === "completed").length;
-  const total = childVax.length;
+type Props = {
+  vaccinations: Vaccination[];
+  seeding: boolean;
+  onSeedTcmr: () => void;
+  onMarkCompleted: (v: Vaccination) => void;
+};
+
+export default function VaccinationTracker({
+  vaccinations,
+  seeding,
+  onSeedTcmr,
+  onMarkCompleted,
+}: Props) {
+  const completed = vaccinations.filter((v) => v.status === "completed").length;
+  const total = vaccinations.length;
   const pct = total > 0 ? completed / total : 0;
 
   const fillW = useSharedValue(0);
   useEffect(() => {
     fillW.value = withTiming(pct, { duration: 600 });
-  }, [childId]);
+  }, [pct]);
 
   const fillStyle = useAnimatedStyle(() => ({
     width: `${fillW.value * 100}%` as unknown as number,
     backgroundColor: colors.success.DEFAULT,
   }));
 
-  // Group by ageGroup
-  const groups: Record<string, VaccinationRecord[]> = {};
-  for (const v of childVax) {
-    if (!groups[v.ageGroup]) groups[v.ageGroup] = [];
-    groups[v.ageGroup].push(v);
+  if (total === 0) {
+    return (
+      <View style={s.empty}>
+        <Syringe size={48} color={colors.text.muted} strokeWidth={1.5} />
+        <Text style={s.emptyTitle}>Chưa có lịch tiêm chủng</Text>
+        <Text style={s.emptySubtitle}>
+          Nhấn bên dưới để tự động tạo lịch TCMR theo ngày sinh.
+        </Text>
+        <Pressable
+          style={[s.seedBtn, seeding && { opacity: 0.6 }]}
+          onPress={onSeedTcmr}
+          disabled={seeding}
+        >
+          {seeding ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={s.seedBtnText}>Tạo lịch TCMR</Text>
+          )}
+        </Pressable>
+      </View>
+    );
+  }
+
+  const groups: Record<string, Vaccination[]> = {};
+  for (const v of vaccinations) {
+    const key = v.ageGroup ?? "Khác";
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(v);
   }
 
   return (
     <View style={s.container}>
-      {/* Progress */}
       <View style={s.progressSection}>
         <View style={s.progressHeader}>
           <Text style={s.progressLabel}>
@@ -44,11 +81,15 @@ export default function VaccinationTracker({ childId }: { childId: string }) {
         </View>
       </View>
 
-      {/* Groups */}
       <View style={s.timeline}>
         <View style={s.verticalLine} />
         {Object.entries(groups).map(([ageGroup, items]) => (
-          <VaccinationGroup key={ageGroup} ageGroup={ageGroup} items={items} />
+          <VaccinationGroup
+            key={ageGroup}
+            ageGroup={ageGroup}
+            items={items}
+            onMarkCompleted={onMarkCompleted}
+          />
         ))}
       </View>
     </View>
@@ -57,6 +98,32 @@ export default function VaccinationTracker({ childId }: { childId: string }) {
 
 const s = StyleSheet.create({
   container: { paddingHorizontal: 16 },
+  empty: {
+    paddingHorizontal: 24,
+    paddingVertical: 40,
+    alignItems: "center",
+    gap: 12,
+  },
+  emptyTitle: { fontFamily: fonts.semibold, fontSize: fontSizes.base, color: colors.text.DEFAULT },
+  emptySubtitle: {
+    fontFamily: fonts.regular,
+    fontSize: fontSizes.sm,
+    color: colors.text.secondary,
+    textAlign: "center",
+    maxWidth: 280,
+  },
+  seedBtn: {
+    backgroundColor: colors.brand.DEFAULT,
+    borderRadius: radius.md,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    marginTop: 8,
+  },
+  seedBtnText: {
+    color: "#FFFFFF",
+    fontFamily: fonts.semibold,
+    fontSize: fontSizes.base,
+  },
   progressSection: { marginBottom: 20 },
   progressHeader: {
     flexDirection: "row",

@@ -1,59 +1,63 @@
 import { View, Text, StyleSheet } from "react-native";
 import { colors, fonts, fontSizes, radius, shadows } from "@/theme";
-import { mockChildren, mockChildHealthLogs } from "@/lib/mock-data";
+import type { Profile } from "@/store/auth";
+import type { GrowthRecord } from "@/lib/child-growth-api";
 
-function ageLabel(dob: string): string {
+function ageLabel(dob: string | null): string {
+  if (!dob) return "—";
   const birth = new Date(dob);
-  const now = new Date("2026-04-13");
+  const now = new Date();
   const totalMonths =
-    (now.getFullYear() - birth.getFullYear()) * 12 +
-    (now.getMonth() - birth.getMonth());
+    (now.getFullYear() - birth.getFullYear()) * 12 + (now.getMonth() - birth.getMonth());
+  if (totalMonths < 0) return "—";
   if (totalMonths < 24) return `${totalMonths} tháng tuổi`;
   return `${Math.floor(totalMonths / 12)} tuổi`;
 }
 
-const AVATAR_COLORS = [colors.brand.light, colors.purple.light];
+function initials(name: string) {
+  return (name.trim().split(/\s+/).pop()?.charAt(0) ?? "B").toUpperCase();
+}
 
-export default function ChildProfileCard({ childId }: { childId: string }) {
-  const child = mockChildren.find((c) => c.id === childId);
-  if (!child) return null;
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString("vi-VN");
+}
 
-  const latestLog = mockChildHealthLogs
-    .filter((l) => l.childId === childId && l.weightKg !== null)
-    .sort((a, b) => b.logDate.localeCompare(a.logDate))[0];
+type Props = {
+  profile: Profile;
+  latestGrowth: GrowthRecord | null;
+};
 
-  const idx = mockChildren.findIndex((c) => c.id === childId);
-  const bg = AVATAR_COLORS[idx % AVATAR_COLORS.length];
-  const initials = child.name.split(" ").pop()?.charAt(0).toUpperCase() ?? "B";
-
-  const formatDate = (iso: string) => {
-    const [y, m, d] = iso.split("-");
-    return `${d}/${m}/${y}`;
-  };
-
+export default function ChildProfileCard({ profile, latestGrowth }: Props) {
   return (
     <View style={s.card}>
-      <View style={[s.avatar, { backgroundColor: bg }]}>
-        <Text style={s.initials}>{initials}</Text>
+      <View style={[s.avatar, { backgroundColor: colors.brand.light }]}>
+        <Text style={s.initials}>{initials(profile.fullName)}</Text>
       </View>
       <View style={s.info}>
         <Text style={s.name}>
-          {child.name} — {ageLabel(child.dateOfBirth)}
+          {profile.fullName} — {ageLabel(profile.dob)}
         </Text>
-        {latestLog && (
+        {latestGrowth && (latestGrowth.weightKg || latestGrowth.heightCm) && (
           <Text style={s.metrics}>
-            Cân:{" "}
-            <Text style={s.metricValue}>{latestLog.weightKg}kg</Text>
-            {latestLog.heightCm ? (
+            {latestGrowth.weightKg && (
               <>
-                {"  |  Cao: "}
-                <Text style={s.metricValue}>{latestLog.heightCm}cm</Text>
+                Cân: <Text style={s.metricValue}>{latestGrowth.weightKg}kg</Text>
               </>
-            ) : null}
+            )}
+            {latestGrowth.weightKg && latestGrowth.heightCm ? "  |  " : ""}
+            {latestGrowth.heightCm && (
+              <>
+                Cao: <Text style={s.metricValue}>{latestGrowth.heightCm}cm</Text>
+              </>
+            )}
           </Text>
         )}
-        {latestLog && (
-          <Text style={s.updated}>Cập nhật: {formatDate(latestLog.logDate)}</Text>
+        {latestGrowth && (
+          <Text style={s.updated}>Cập nhật: {formatDate(latestGrowth.measuredOn)}</Text>
+        )}
+        {!latestGrowth && (
+          <Text style={s.updated}>Chưa có chỉ số tăng trưởng nào.</Text>
         )}
       </View>
     </View>
