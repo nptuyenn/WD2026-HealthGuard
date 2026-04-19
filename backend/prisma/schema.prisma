@@ -1,0 +1,34 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String          @id @default(uuid())
+  email        String          @unique
+  passwordHash String
+  locale       String          @default("vi")
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  profiles     HealthProfile[]
+}
+
+model HealthProfile {
+  id           String    @id @default(uuid())
+  userId       String
+  fullName     String
+  dob          DateTime?
+  gender       String?
+  relationship String?
+  bloodType    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
