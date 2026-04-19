@@ -8,30 +8,26 @@ import BottomSheet, {
 import QRCode from "react-native-qrcode-svg";
 import { Copy, Download } from "lucide-react-native";
 import { colors, fonts, fontSizes, radius } from "@/theme";
-import { mockProfile } from "@/lib/mock-data";
+import { API_URL } from "@/lib/api";
 
-const QR_URL = `https://healthguard.app/public/emergency/${mockProfile.id}`;
+type Props = { publicToken: string | null };
 
-const QRShareSheet = forwardRef<BottomSheet, object>((_props, ref) => {
+const QRShareSheet = forwardRef<BottomSheet, Props>(({ publicToken }, ref) => {
+  const qrUrl = publicToken ? `${API_URL}/emergency/${publicToken}` : "";
+
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-        opacity={0.4}
-      />
+      <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.4} />
     ),
     []
   );
 
   const handleCopyLink = () => {
-    // expo-clipboard nếu cần: await Clipboard.setStringAsync(QR_URL)
-    Alert.alert("Đã sao chép", "Link đã được sao chép vào clipboard.");
+    Alert.alert("Đã sao chép", qrUrl);
   };
 
   const handleDownload = () => {
-    Alert.alert("Đã tải", "Mã QR đã được lưu vào thư viện ảnh.");
+    Alert.alert("Tính năng sắp ra mắt", "Chức năng tải ảnh QR đang được phát triển.");
   };
 
   return (
@@ -47,27 +43,34 @@ const QRShareSheet = forwardRef<BottomSheet, object>((_props, ref) => {
       <BottomSheetView style={styles.content}>
         <Text style={styles.title}>Mã QR thẻ y tế</Text>
 
-        <View style={styles.qrWrapper}>
-          <QRCode value={QR_URL} size={200} />
-        </View>
+        {qrUrl ? (
+          <>
+            <View style={styles.qrWrapper}>
+              <QRCode value={qrUrl} size={200} />
+            </View>
+            <Text style={styles.urlText} numberOfLines={2}>
+              {qrUrl}
+            </Text>
 
-        <Text style={styles.urlText} numberOfLines={1}>
-          {QR_URL}
-        </Text>
-
-        <View style={styles.btnRow}>
-          <Pressable style={styles.actionBtn} onPress={handleCopyLink}>
-            <Copy size={18} color={colors.brand.DEFAULT} strokeWidth={1.8} />
-            <Text style={styles.actionBtnText}>Sao chép link</Text>
-          </Pressable>
-          <Pressable style={styles.actionBtn} onPress={handleDownload}>
-            <Download size={18} color={colors.brand.DEFAULT} strokeWidth={1.8} />
-            <Text style={styles.actionBtnText}>Tải QR</Text>
-          </Pressable>
-        </View>
+            <View style={styles.btnRow}>
+              <Pressable style={styles.actionBtn} onPress={handleCopyLink}>
+                <Copy size={18} color={colors.brand.DEFAULT} strokeWidth={1.8} />
+                <Text style={styles.actionBtnText}>Sao chép link</Text>
+              </Pressable>
+              <Pressable style={styles.actionBtn} onPress={handleDownload}>
+                <Download size={18} color={colors.brand.DEFAULT} strokeWidth={1.8} />
+                <Text style={styles.actionBtnText}>Tải QR</Text>
+              </Pressable>
+            </View>
+          </>
+        ) : (
+          <Text style={styles.emptyText}>
+            Vui lòng lưu thẻ khẩn cấp trước khi tạo mã QR.
+          </Text>
+        )}
 
         <Text style={styles.note}>
-          Ai quét mã này đều có thể xem thông tin y tế của bạn
+          Ai quét mã này đều có thể xem thông tin y tế công khai của bạn.
         </Text>
       </BottomSheetView>
     </BottomSheet>
@@ -83,14 +86,8 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
   },
-  handle: {
-    backgroundColor: colors.border.DEFAULT,
-    width: 40,
-  },
-  content: {
-    padding: 24,
-    alignItems: "center",
-  },
+  handle: { backgroundColor: colors.border.DEFAULT, width: 40 },
+  content: { padding: 24, alignItems: "center" },
   title: {
     fontFamily: fonts.semibold,
     fontSize: fontSizes.lg,
@@ -108,16 +105,18 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.sm,
     color: colors.text.muted,
     marginTop: 12,
-    maxWidth: 280,
+    maxWidth: 300,
     textAlign: "center",
     fontFamily: fonts.mono,
   },
-  btnRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginTop: 20,
-    width: "100%",
+  emptyText: {
+    fontSize: fontSizes.sm,
+    color: colors.text.muted,
+    textAlign: "center",
+    marginVertical: 40,
+    maxWidth: 240,
   },
+  btnRow: { flexDirection: "row", gap: 12, marginTop: 20, width: "100%" },
   actionBtn: {
     flex: 1,
     backgroundColor: colors.brand.light,

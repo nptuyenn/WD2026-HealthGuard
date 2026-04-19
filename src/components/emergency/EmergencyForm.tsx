@@ -1,389 +1,316 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import {
   View,
   Text,
   TextInput,
   Pressable,
   StyleSheet,
+  ActivityIndicator,
   Alert,
-  type LayoutChangeEvent,
 } from "react-native";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-} from "react-native-reanimated";
-import {
-  User,
-  AlertTriangle,
-  HeartPulse,
-  Pill,
-  Phone,
-  ChevronDown,
-  Camera,
-  QrCode,
-  Download,
-  Trash2,
-  Plus,
-} from "lucide-react-native";
+import { X, Plus, QrCode, Save } from "lucide-react-native";
 import { colors, fonts, fontSizes, radius, shadows, spacing } from "@/theme";
-import {
-  mockProfile,
-  mockAllergies,
-  mockConditions,
-  mockMedications,
-  mockEmergencyContacts,
-} from "@/lib/mock-data";
+import type { EmergencyContact } from "@/lib/emergency-api";
 
-// ─── CollapsibleSection ──────────────────────────────────────────────────────
-
-interface CollapsibleProps {
-  title: string;
-  icon: React.ComponentType<{ size: number; color: string; strokeWidth: number }>;
-  badge?: number;
-  children: React.ReactNode;
-}
-
-function CollapsibleSection({ title, icon: Icon, badge, children }: CollapsibleProps) {
-  const [open, setOpen] = useState(false);
-  const heightRef = useRef(0);
-  const animH = useSharedValue(0);
-  const chevRot = useSharedValue(0);
-
-  const bodyStyle = useAnimatedStyle(() => ({
-    height: animH.value,
-    overflow: "hidden" as const,
-  }));
-  const arrowStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${chevRot.value}deg` }],
-  }));
-
-  const toggle = () => {
-    const next = !open;
-    setOpen(next);
-    animH.value = withTiming(next ? heightRef.current : 0, { duration: 250 });
-    chevRot.value = withTiming(next ? 180 : 0, { duration: 250 });
-  };
-
-  const onGhostLayout = (e: LayoutChangeEvent) => {
-    const h = e.nativeEvent.layout.height;
-    if (h > 0) heightRef.current = h;
-  };
-
-  return (
-    <View style={s.section}>
-      {/* Header */}
-      <Pressable style={s.sectionHeader} onPress={toggle}>
-        <View style={s.sectionLeft}>
-          <Icon size={20} color={colors.text.secondary} strokeWidth={1.8} />
-          <Text style={s.sectionTitle}>{title}</Text>
-          {badge != null && (
-            <View style={s.sectionBadge}>
-              <Text style={s.sectionBadgeText}>{badge}</Text>
-            </View>
-          )}
-        </View>
-        <Animated.View style={arrowStyle}>
-          <ChevronDown size={18} color={colors.text.secondary} strokeWidth={1.8} />
-        </Animated.View>
-      </Pressable>
-
-      {/* Ghost — off-screen measurement */}
-      <View
-        style={s.ghost}
-        pointerEvents="none"
-        onLayout={onGhostLayout}
-      >
-        <View style={s.sectionContent}>{children}</View>
-      </View>
-
-      {/* Animated body */}
-      <Animated.View style={bodyStyle}>
-        <View style={s.sectionContent}>{children}</View>
-      </Animated.View>
-    </View>
-  );
-}
-
-// ─── Reusable input styles ────────────────────────────────────────────────────
-
-function InputField({
-  label,
-  value,
-  placeholder,
-  keyboardType,
-}: {
-  label: string;
-  value?: string;
-  placeholder?: string;
-  keyboardType?: "default" | "numeric" | "phone-pad";
-}) {
-  return (
-    <View style={s.fieldWrap}>
-      <Text style={s.fieldLabel}>{label}</Text>
-      <TextInput
-        style={s.input}
-        defaultValue={value}
-        placeholder={placeholder ?? ""}
-        placeholderTextColor={colors.text.muted}
-        keyboardType={keyboardType ?? "default"}
-        fontFamily={fonts.regular}
-      />
-    </View>
-  );
-}
-
-function SelectField({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={s.fieldWrap}>
-      <Text style={s.fieldLabel}>{label}</Text>
-      <Pressable style={s.selectBox}>
-        <Text style={s.selectText}>{value}</Text>
-        <ChevronDown size={16} color={colors.text.muted} strokeWidth={1.8} />
-      </Pressable>
-    </View>
-  );
-}
-
-// ─── Chip lists (allergies / conditions) ─────────────────────────────────────
-
-function ChipList({
-  items,
-  bg,
-  textColor,
-}: {
-  items: string[];
-  bg: string;
-  textColor: string;
-}) {
-  return (
-    <View style={s.chipRow}>
-      {items.map((item) => (
-        <View key={item} style={[s.chip, { backgroundColor: bg }]}>
-          <Text style={[s.chipText, { color: textColor }]}>{item}</Text>
-        </View>
-      ))}
-      <Pressable style={[s.chip, s.chipAdd]}>
-        <Plus size={12} color={colors.text.muted} strokeWidth={2} />
-        <Text style={s.chipAddText}>Thêm</Text>
-      </Pressable>
-    </View>
-  );
-}
-
-// ─── EmergencyForm ────────────────────────────────────────────────────────────
-
-interface Props {
+type Props = {
+  bloodType: string | null;
+  allergies: string[];
+  conditions: string[];
+  contacts: EmergencyContact[];
+  notes: string | null;
+  saving: boolean;
+  hasToken: boolean;
+  onSave: (data: {
+    bloodType: string | null;
+    allergies: string[];
+    conditions: string[];
+    contacts: EmergencyContact[];
+    notes: string | null;
+  }) => void;
   onShareQR: () => void;
-}
+};
 
-export default function EmergencyForm({ onShareQR }: Props) {
+export default function EmergencyForm(props: Props) {
+  const [bloodType, setBloodType] = useState(props.bloodType ?? "");
+  const [allergies, setAllergies] = useState(props.allergies);
+  const [conditions, setConditions] = useState(props.conditions);
+  const [contacts, setContacts] = useState<EmergencyContact[]>(props.contacts);
+  const [notes, setNotes] = useState(props.notes ?? "");
+  const [allergyInput, setAllergyInput] = useState("");
+  const [conditionInput, setConditionInput] = useState("");
+
+  const addAllergy = () => {
+    const v = allergyInput.trim();
+    if (!v) return;
+    if (allergies.includes(v)) return;
+    setAllergies([...allergies, v]);
+    setAllergyInput("");
+  };
+  const removeAllergy = (v: string) => setAllergies(allergies.filter((a) => a !== v));
+
+  const addCondition = () => {
+    const v = conditionInput.trim();
+    if (!v) return;
+    if (conditions.includes(v)) return;
+    setConditions([...conditions, v]);
+    setConditionInput("");
+  };
+  const removeCondition = (v: string) => setConditions(conditions.filter((c) => c !== v));
+
+  const addContact = () => {
+    if (contacts.length >= 3) return;
+    setContacts([
+      ...contacts,
+      { name: "", phone: "", relationship: "", isPrimary: contacts.length === 0 },
+    ]);
+  };
+  const updateContact = (i: number, patch: Partial<EmergencyContact>) => {
+    setContacts(contacts.map((c, idx) => (idx === i ? { ...c, ...patch } : c)));
+  };
+  const removeContact = (i: number) =>
+    setContacts(contacts.filter((_, idx) => idx !== i));
+  const setPrimary = (i: number) =>
+    setContacts(contacts.map((c, idx) => ({ ...c, isPrimary: idx === i })));
+
+  const handleSave = () => {
+    for (const c of contacts) {
+      if (!c.name.trim() || !c.phone.trim()) {
+        Alert.alert("Thiếu thông tin", "Tên và số điện thoại liên hệ không được để trống.");
+        return;
+      }
+    }
+    props.onSave({
+      bloodType: bloodType.trim() || null,
+      allergies,
+      conditions,
+      contacts,
+      notes: notes.trim() || null,
+    });
+  };
+
   return (
     <View style={s.container}>
-      {/* 1. Thông tin cá nhân */}
-      <CollapsibleSection title="Thông tin cá nhân" icon={User}>
-        <InputField label="Họ và tên" value={mockProfile.fullName} />
-        <SelectField label="Ngày sinh" value="15/03/1990" />
-        <SelectField
-          label="Giới tính"
-          value={mockProfile.gender === "male" ? "Nam" : "Nữ"}
+      <Section title="Nhóm máu">
+        <TextInput
+          style={s.input}
+          value={bloodType}
+          onChangeText={setBloodType}
+          placeholder="VD: A+, B-, O+"
+          placeholderTextColor={colors.text.muted}
+          autoCapitalize="characters"
+          maxLength={5}
         />
-        <SelectField label="Nhóm máu" value={mockProfile.bloodType} />
-        <InputField
-          label="Số BHYT"
-          value={mockProfile.insuranceNumber}
-          keyboardType="numeric"
-        />
-        <Pressable style={s.photoBtn}>
-          <Camera size={18} color={colors.text.secondary} strokeWidth={1.8} />
-          <Text style={s.photoBtnText}>Chọn ảnh đại diện</Text>
-        </Pressable>
-      </CollapsibleSection>
+      </Section>
 
-      {/* 2. Dị ứng */}
-      <CollapsibleSection
-        title="Dị ứng"
-        icon={AlertTriangle}
-        badge={mockAllergies.length}
-      >
-        <ChipList
-          items={mockAllergies.map((a) => a.name)}
-          bg={colors.danger.light}
-          textColor={colors.danger.DEFAULT}
-        />
-      </CollapsibleSection>
-
-      {/* 3. Bệnh nền */}
-      <CollapsibleSection
-        title="Bệnh nền"
-        icon={HeartPulse}
-        badge={mockConditions.length}
-      >
-        <ChipList
-          items={mockConditions.map((c) => c.name)}
-          bg={colors.warning.light}
-          textColor={colors.warning.DEFAULT}
-        />
-      </CollapsibleSection>
-
-      {/* 4. Thuốc đang dùng */}
-      <CollapsibleSection title="Thuốc đang dùng" icon={Pill}>
-        <View style={s.medList}>
-          {mockMedications
-            .filter((m) => m.isActive)
-            .map((med) => (
-              <View key={med.id} style={s.medItem}>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.medName}>
-                    {med.name} {med.dosage}
-                    {med.unit}
-                  </Text>
-                  <Text style={s.medDetail}>{med.frequency}</Text>
-                </View>
-                <Pressable
-                  onPress={() => Alert.alert("Xóa", `Xóa ${med.name}?`)}
-                >
-                  <Trash2
-                    size={18}
-                    color={colors.danger.DEFAULT}
-                    strokeWidth={1.8}
-                  />
-                </Pressable>
-              </View>
-            ))}
-        </View>
-        <Pressable style={s.dashedBtn}>
-          <Plus size={16} color={colors.text.muted} strokeWidth={1.8} />
-          <Text style={s.dashedBtnText}>Thêm thuốc</Text>
-        </Pressable>
-      </CollapsibleSection>
-
-      {/* 5. Người liên hệ khẩn cấp */}
-      <CollapsibleSection
-        title="Người liên hệ khẩn cấp"
-        icon={Phone}
-        badge={mockEmergencyContacts.length}
-      >
-        <View style={s.contactList}>
-          {mockEmergencyContacts.map((c) => (
-            <View key={c.id} style={s.contactItem}>
-              <View style={{ flex: 1 }}>
-                <View style={s.contactNameRow}>
-                  <Text style={s.contactName}>{c.name}</Text>
-                  {c.isPrimary && (
-                    <View style={s.primaryBadge}>
-                      <Text style={s.primaryBadgeText}>Chính</Text>
-                    </View>
-                  )}
-                </View>
-                <Text style={s.contactMeta}>
-                  {c.relationship} · {c.phone}
-                </Text>
-              </View>
-              <Pressable>
-                <Trash2
-                  size={18}
-                  color={colors.danger.DEFAULT}
-                  strokeWidth={1.8}
-                />
+      <Section title="Dị ứng" count={allergies.length}>
+        <View style={s.chipRow}>
+          {allergies.map((a) => (
+            <View key={a} style={[s.chip, { backgroundColor: colors.danger.light }]}>
+              <Text style={[s.chipText, { color: colors.danger.DEFAULT }]}>{a}</Text>
+              <Pressable onPress={() => removeAllergy(a)} hitSlop={8}>
+                <X size={14} color={colors.danger.DEFAULT} />
               </Pressable>
             </View>
           ))}
         </View>
-        {mockEmergencyContacts.length < 3 ? (
-          <Pressable style={s.dashedBtn}>
-            <Plus size={16} color={colors.text.muted} strokeWidth={1.8} />
+        <View style={s.addRow}>
+          <TextInput
+            style={[s.input, { flex: 1 }]}
+            value={allergyInput}
+            onChangeText={setAllergyInput}
+            placeholder="VD: Penicillin"
+            placeholderTextColor={colors.text.muted}
+            onSubmitEditing={addAllergy}
+            returnKeyType="done"
+          />
+          <Pressable style={s.addBtn} onPress={addAllergy}>
+            <Plus size={18} color="#fff" />
+          </Pressable>
+        </View>
+      </Section>
+
+      <Section title="Bệnh nền" count={conditions.length}>
+        <View style={s.chipRow}>
+          {conditions.map((c) => (
+            <View key={c} style={[s.chip, { backgroundColor: colors.warning.light }]}>
+              <Text style={[s.chipText, { color: colors.warning.DEFAULT }]}>{c}</Text>
+              <Pressable onPress={() => removeCondition(c)} hitSlop={8}>
+                <X size={14} color={colors.warning.DEFAULT} />
+              </Pressable>
+            </View>
+          ))}
+        </View>
+        <View style={s.addRow}>
+          <TextInput
+            style={[s.input, { flex: 1 }]}
+            value={conditionInput}
+            onChangeText={setConditionInput}
+            placeholder="VD: Hen suyễn"
+            placeholderTextColor={colors.text.muted}
+            onSubmitEditing={addCondition}
+            returnKeyType="done"
+          />
+          <Pressable style={s.addBtn} onPress={addCondition}>
+            <Plus size={18} color="#fff" />
+          </Pressable>
+        </View>
+      </Section>
+
+      <Section title={`Liên hệ khẩn cấp (tối đa 3)`} count={contacts.length}>
+        {contacts.map((c, i) => (
+          <View key={i} style={s.contactCard}>
+            <View style={s.contactHeader}>
+              <Pressable
+                style={[s.primaryTag, c.isPrimary && s.primaryTagActive]}
+                onPress={() => setPrimary(i)}
+              >
+                <Text
+                  style={[
+                    s.primaryTagText,
+                    c.isPrimary && s.primaryTagTextActive,
+                  ]}
+                >
+                  {c.isPrimary ? "★ Chính" : "Đặt làm chính"}
+                </Text>
+              </Pressable>
+              <Pressable onPress={() => removeContact(i)} hitSlop={8}>
+                <X size={16} color={colors.danger.DEFAULT} />
+              </Pressable>
+            </View>
+            <TextInput
+              style={s.input}
+              value={c.name}
+              onChangeText={(v) => updateContact(i, { name: v })}
+              placeholder="Họ và tên"
+              placeholderTextColor={colors.text.muted}
+            />
+            <TextInput
+              style={s.input}
+              value={c.phone}
+              onChangeText={(v) => updateContact(i, { phone: v })}
+              placeholder="Số điện thoại"
+              placeholderTextColor={colors.text.muted}
+              keyboardType="phone-pad"
+            />
+            <TextInput
+              style={s.input}
+              value={c.relationship ?? ""}
+              onChangeText={(v) => updateContact(i, { relationship: v })}
+              placeholder="Quan hệ (VD: Chồng, Vợ, Con)"
+              placeholderTextColor={colors.text.muted}
+            />
+          </View>
+        ))}
+        {contacts.length < 3 && (
+          <Pressable style={s.dashedBtn} onPress={addContact}>
+            <Plus size={16} color={colors.text.muted} />
             <Text style={s.dashedBtnText}>Thêm liên hệ</Text>
           </Pressable>
-        ) : (
-          <Text style={s.warningText}>Tối đa 3 liên hệ khẩn cấp.</Text>
         )}
-      </CollapsibleSection>
+      </Section>
 
-      {/* Bottom actions */}
+      <Section title="Ghi chú">
+        <TextInput
+          style={[s.input, { minHeight: 80, textAlignVertical: "top" }]}
+          value={notes}
+          onChangeText={setNotes}
+          placeholder="VD: Dùng inhaler màu xanh khi lên cơn hen"
+          placeholderTextColor={colors.text.muted}
+          multiline
+          maxLength={500}
+        />
+      </Section>
+
       <View style={s.actions}>
-        <Pressable style={s.btnPrimary} onPress={onShareQR}>
-          <QrCode size={18} color="#FFFFFF" strokeWidth={1.8} />
-          <Text style={s.btnPrimaryText}>Chia sẻ QR</Text>
-        </Pressable>
         <Pressable
-          style={s.btnOutline}
-          onPress={() => Alert.alert("Tính năng sắp ra mắt")}
+          style={[s.btnPrimary, props.saving && { opacity: 0.6 }]}
+          onPress={handleSave}
+          disabled={props.saving}
         >
-          <Download size={18} color={colors.brand.DEFAULT} strokeWidth={1.8} />
-          <Text style={s.btnOutlineText}>Tải thẻ PDF</Text>
+          {props.saving ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <>
+              <Save size={18} color="#fff" />
+              <Text style={s.btnPrimaryText}>Lưu thẻ khẩn cấp</Text>
+            </>
+          )}
+        </Pressable>
+
+        <Pressable
+          style={[s.btnOutline, !props.hasToken && { opacity: 0.5 }]}
+          onPress={props.onShareQR}
+          disabled={!props.hasToken}
+        >
+          <QrCode size={18} color={colors.brand.DEFAULT} />
+          <Text style={s.btnOutlineText}>Chia sẻ QR</Text>
         </Pressable>
       </View>
     </View>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+function Section({
+  title,
+  count,
+  children,
+}: {
+  title: string;
+  count?: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <View style={s.section}>
+      <View style={s.sectionHeader}>
+        <Text style={s.sectionTitle}>{title}</Text>
+        {count != null && (
+          <View style={s.sectionBadge}>
+            <Text style={s.sectionBadgeText}>{count}</Text>
+          </View>
+        )}
+      </View>
+      <View style={s.sectionBody}>{children}</View>
+    </View>
+  );
+}
 
 const s = StyleSheet.create({
-  container: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing["4xl"],
-    gap: 12,
-  },
+  container: { paddingHorizontal: spacing.lg, paddingBottom: spacing["4xl"], gap: 12 },
 
-  // CollapsibleSection
-  section: {},
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 16,
+  section: {
     backgroundColor: colors.surface.card,
     borderRadius: radius.md,
     ...shadows.card,
   },
-  sectionLeft: {
+  sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    flex: 1,
+    padding: 16,
+    paddingBottom: 8,
+    gap: 8,
   },
   sectionTitle: {
     fontFamily: fonts.semibold,
     fontSize: fontSizes.base,
     color: colors.text.DEFAULT,
+    flex: 1,
   },
   sectionBadge: {
-    minWidth: 20,
-    height: 20,
-    borderRadius: 10,
+    minWidth: 22,
+    height: 22,
+    paddingHorizontal: 6,
+    borderRadius: 11,
     backgroundColor: colors.brand.light,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 4,
   },
   sectionBadgeText: {
     fontSize: 11,
     color: colors.brand.DEFAULT,
     fontFamily: fonts.medium,
   },
-  sectionContent: {
-    backgroundColor: colors.surface.card,
-    borderBottomLeftRadius: radius.md,
-    borderBottomRightRadius: radius.md,
-    padding: 16,
-    gap: 12,
-  },
-  ghost: {
-    position: "absolute",
-    opacity: 0,
-    zIndex: -999,
-    width: "100%",
-  },
+  sectionBody: { padding: 16, paddingTop: 4, gap: 12 },
 
-  // Form fields
-  fieldWrap: { gap: 4 },
-  fieldLabel: {
-    fontSize: 12,
-    fontFamily: fonts.medium,
-    color: colors.text.secondary,
-  },
   input: {
     borderWidth: 1,
     borderColor: colors.border.DEFAULT,
@@ -391,115 +318,61 @@ const s = StyleSheet.create({
     padding: 12,
     fontSize: fontSizes.base,
     color: colors.text.DEFAULT,
-  },
-  selectBox: {
-    borderWidth: 1,
-    borderColor: colors.border.DEFAULT,
-    borderRadius: radius.sm,
-    padding: 12,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  selectText: {
-    fontSize: fontSizes.base,
-    color: colors.text.DEFAULT,
-    fontFamily: fonts.regular,
-  },
-  photoBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingVertical: 8,
-  },
-  photoBtnText: {
-    fontSize: fontSizes.sm,
-    color: colors.text.secondary,
-    fontFamily: fonts.medium,
+    backgroundColor: "#fff",
   },
 
-  // Chips
-  chipRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 9999,
   },
-  chipText: {
-    fontSize: 13,
-    fontFamily: fonts.medium,
+  chipText: { fontSize: 13, fontFamily: fonts.medium },
+
+  addRow: { flexDirection: "row", gap: 8 },
+  addBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.sm,
+    backgroundColor: colors.brand.DEFAULT,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  chipAdd: {
+
+  contactCard: {
+    gap: 8,
+    padding: 12,
+    borderRadius: radius.sm,
     backgroundColor: colors.surface.secondary,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
   },
-  chipAddText: {
-    fontSize: 13,
-    color: colors.text.muted,
-    fontFamily: fonts.regular,
-  },
-
-  // Med list
-  medList: { gap: 8 },
-  medItem: {
+  contactHeader: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  primaryTag: {
+    paddingHorizontal: 10,
     paddingVertical: 4,
-  },
-  medName: {
-    fontSize: fontSizes.base,
-    fontFamily: fonts.medium,
-    color: colors.text.DEFAULT,
-  },
-  medDetail: {
-    fontSize: fontSizes.sm,
-    color: colors.text.secondary,
-    fontFamily: fonts.regular,
-  },
-
-  // Contacts
-  contactList: { gap: 12 },
-  contactItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  contactNameRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 2,
-  },
-  contactName: {
-    fontSize: fontSizes.base,
-    fontFamily: fonts.medium,
-    color: colors.text.DEFAULT,
-  },
-  primaryBadge: {
-    backgroundColor: colors.brand.light,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
     borderRadius: 9999,
+    borderWidth: 1,
+    borderColor: colors.border.DEFAULT,
+    backgroundColor: "#fff",
   },
-  primaryBadgeText: {
-    fontSize: 10,
-    color: colors.brand.DEFAULT,
+  primaryTagActive: {
+    backgroundColor: colors.brand.light,
+    borderColor: colors.brand.DEFAULT,
+  },
+  primaryTagText: {
+    fontSize: 11,
     fontFamily: fonts.medium,
-  },
-  contactMeta: {
-    fontSize: fontSizes.sm,
     color: colors.text.secondary,
-    fontFamily: fonts.regular,
   },
+  primaryTagTextActive: { color: colors.brand.DEFAULT },
 
-  // Dashed add button
   dashedBtn: {
     borderWidth: 1,
     borderStyle: "dashed",
@@ -516,18 +389,8 @@ const s = StyleSheet.create({
     color: colors.text.muted,
     fontFamily: fonts.medium,
   },
-  warningText: {
-    fontSize: fontSizes.sm,
-    color: colors.warning.DEFAULT,
-    fontFamily: fonts.regular,
-    textAlign: "center",
-  },
 
-  // Actions
-  actions: {
-    gap: 12,
-    marginTop: 24,
-  },
+  actions: { gap: 12, marginTop: 12, paddingHorizontal: spacing.lg },
   btnPrimary: {
     backgroundColor: colors.brand.DEFAULT,
     borderRadius: radius.md,
