@@ -35,6 +35,7 @@ model HealthProfile {
   vaccinations   Vaccination[]
   growthRecords  GrowthRecord[]
   healthMetrics  HealthMetric[]
+  clinicVisits   ClinicVisit[]
 
   @@index([userId])
 }
@@ -170,4 +171,38 @@ model EmergencyCard {
   profile         HealthProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@index([publicToken])
+}
+
+model ExamResult {
+  id           String    @id @default(uuid())
+  token        String    @unique @default(uuid())
+  doctorName   String?
+  clinicName   String?
+  examDate     DateTime  @default(now())
+  diagnosis    String?
+  metrics      Json      @default("[]")
+  labResults   Json      @default("[]")
+  prescription Json      @default("[]")
+  appointment  Json?
+  expiresAt    DateTime
+  createdAt    DateTime  @default(now())
+}
+
+model ClinicVisit {
+  id           String        @id @default(uuid())
+  profileId    String
+  visitDate    DateTime
+  doctorName   String?
+  clinicName   String?
+  diagnosis    String?
+  metrics      Json          @default("[]")
+  labResults   Json          @default("[]")
+  prescription Json          @default("[]")
+  notes        String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  profile      HealthProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@index([visitDate])
 }

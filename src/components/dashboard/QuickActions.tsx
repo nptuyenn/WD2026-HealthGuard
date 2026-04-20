@@ -1,5 +1,5 @@
-import { View, Text, Pressable, StyleSheet, Alert } from "react-native";
-import { Plus, ClipboardPen, QrCode, CalendarPlus } from "lucide-react-native";
+import { View, Text, Pressable, StyleSheet } from "react-native";
+import { Plus, ClipboardPen, QrCode, FolderClock } from "lucide-react-native";
 import { colors, fonts } from "@/theme";
 import { useRouter } from "expo-router";
 
@@ -7,7 +7,7 @@ const ACTIONS = [
   { icon: Plus, label: "Thêm thuốc" },
   { icon: ClipboardPen, label: "Ghi chỉ số" },
   { icon: QrCode, label: "Quét QR" },
-  { icon: CalendarPlus, label: "Thêm lịch" },
+  { icon: FolderClock, label: "Lịch sử khám" },
 ] as const;
 
 export default function QuickActions() {
@@ -24,8 +24,8 @@ export default function QuickActions() {
               router.push("/health-dashboard");
             } else if (label === "Quét QR") {
               router.push("/scan");
-            } else if (label === "Thêm lịch") {
-              router.push("/med-manager"); // hoặc "/appointment"
+            } else if (label === "Lịch sử khám") {
+              router.push("/clinic-visits");
             }
           }}
           style={styles.item}

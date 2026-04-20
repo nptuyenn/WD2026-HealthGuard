@@ -35,7 +35,11 @@ export async function api<T = unknown>(
   if (res.status === 204) return undefined as T;
 
   const text = await res.text();
-  const body = text ? JSON.parse(text) : undefined;
+  let body: any = undefined;
+  if (text) {
+    try { body = JSON.parse(text); }
+    catch { body = { error: `HTTP ${res.status}: ${res.statusText || "phản hồi không hợp lệ"}` }; }
+  }
 
   if (!res.ok) {
     throw new ApiError(res.status, body?.error ?? `HTTP ${res.status}`, body);

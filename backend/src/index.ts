@@ -13,6 +13,8 @@ import { appointmentsRouter } from "./routes/appointments";
 import { vaccinationsRouter } from "./routes/vaccinations";
 import { growthRecordsRouter } from "./routes/growth-records";
 import { healthMetricsRouter } from "./routes/health-metrics";
+import { clinicVisitsRouter } from "./routes/clinic-visits";
+import examRouter from "./routes/exam";
 import { errorHandler } from "./middleware/error";
 
 const app = express();
@@ -20,6 +22,7 @@ const app = express();
 app.set("trust proxy", 1);
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 app.use("/health", healthRouter);
 app.use("/api/v1/health", healthRouter);
@@ -32,8 +35,11 @@ app.use("/api/v1/profiles/:profileId/appointments", appointmentsRouter);
 app.use("/api/v1/profiles/:profileId/vaccinations", vaccinationsRouter);
 app.use("/api/v1/profiles/:profileId/growth-records", growthRecordsRouter);
 app.use("/api/v1/profiles/:profileId/metrics", healthMetricsRouter);
+app.use("/api/v1/profiles/:profileId/clinic-visits", clinicVisitsRouter);
 app.use("/api/v1/medication-logs", medicationLogsRouter);
 app.use("/emergency", emergencyPublicRouter);
+app.use("/exam", examRouter);
+app.use("/api/v1/exam", examRouter);
 
 app.use(errorHandler);
 
