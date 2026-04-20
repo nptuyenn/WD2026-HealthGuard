@@ -3,7 +3,7 @@ import { View, Text, Pressable, StyleSheet, ActivityIndicator } from "react-nati
 import { Pill, Stethoscope, CheckCircle } from "lucide-react-native";
 import { useFocusEffect } from "expo-router";
 import { colors, fonts, fontSizes, radius, shadows } from "@/theme";
-import { useAuth } from "@/store/auth";
+import { useActiveProfile } from "@/store/auth";
 import { getToday, logDose, type TimelineEvent } from "@/lib/medications-api";
 import { listAppointments, type Appointment } from "@/lib/appointments-api";
 
@@ -74,8 +74,7 @@ function ApptItem({ appt }: { appt: Appointment }) {
 }
 
 export default function TodayReminders() {
-  const user = useAuth((s) => s.user);
-  const profile = user?.profiles?.[0] ?? null;
+  const profile = useActiveProfile();
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [appts, setAppts] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);

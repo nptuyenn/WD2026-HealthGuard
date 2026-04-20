@@ -13,7 +13,7 @@ import { colors, fonts, fontSizes, spacing } from "@/theme";
 import CardPreview3D from "@/components/emergency/CardPreview3D";
 import EmergencyForm from "@/components/emergency/EmergencyForm";
 import QRShareSheet from "@/components/emergency/QRShareSheet";
-import { useAuth } from "@/store/auth";
+import { useAuth, useActiveProfile } from "@/store/auth";
 import {
   getEmergencyCard,
   upsertEmergencyCard,
@@ -24,9 +24,8 @@ import { api } from "@/lib/api";
 
 export default function EmergencyCardScreen() {
   const qrSheetRef = useRef<BottomSheet>(null);
-  const user = useAuth((state) => state.user);
   const refreshUser = useAuth((state) => state.refreshUser);
-  const profile = user?.profiles?.[0] ?? null;
+  const profile = useActiveProfile();
 
   const [card, setCard] = useState<EmergencyCard | null>(null);
   const [loading, setLoading] = useState(true);

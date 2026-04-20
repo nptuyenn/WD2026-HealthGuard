@@ -5,13 +5,12 @@ import { Droplets, AlertTriangle, Phone } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "expo-router";
 import { colors, fonts, fontSizes, radius, shadows } from "@/theme";
-import { useAuth } from "@/store/auth";
+import { useActiveProfile } from "@/store/auth";
 import { getEmergencyCard, type EmergencyCard } from "@/lib/emergency-api";
 
 export default function EmergencyQuickCard() {
   const router = useRouter();
-  const user = useAuth((s) => s.user);
-  const profile = user?.profiles?.[0] ?? null;
+  const profile = useActiveProfile();
   const [card, setCard] = useState<EmergencyCard | null>(null);
 
   const load = useCallback(async () => {

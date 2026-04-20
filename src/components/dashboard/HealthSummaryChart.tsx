@@ -13,7 +13,7 @@ import {
 } from "victory-native";
 import { useFocusEffect } from "expo-router";
 import { colors, fonts, fontSizes, radius, shadows } from "@/theme";
-import { useAuth } from "@/store/auth";
+import { useActiveProfile } from "@/store/auth";
 import { getMetricSummary, type MetricSummary } from "@/lib/health-metrics-api";
 
 const DAY_LABELS = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
@@ -23,8 +23,7 @@ function getDayLabel(iso: string): string {
 }
 
 export default function HealthSummaryChart() {
-  const user = useAuth((s) => s.user);
-  const profile = user?.profiles?.[0] ?? null;
+  const profile = useActiveProfile();
   const [summary, setSummary] = useState<MetricSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const { width: screenWidth } = useWindowDimensions();

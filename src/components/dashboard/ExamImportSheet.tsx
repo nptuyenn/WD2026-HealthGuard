@@ -22,7 +22,7 @@ import {
   FileText,
 } from "lucide-react-native";
 import { colors, fonts, fontSizes, radius } from "@/theme";
-import { useAuth } from "@/store/auth";
+import { useActiveProfile } from "@/store/auth";
 import { METRIC_META } from "@/lib/health-metrics-api";
 import { importVisitFromExam } from "@/lib/clinic-visits-api";
 import type { ExamResult } from "@/lib/exam-api";
@@ -46,8 +46,7 @@ function formatDate(iso: string): string {
 }
 
 const ExamImportSheet = forwardRef<BottomSheet, Props>(({ exam, onDone }, ref) => {
-  const user = useAuth((s) => s.user);
-  const profile = user?.profiles?.[0] ?? null;
+  const profile = useActiveProfile();
   const [saving, setSaving] = useState(false);
 
   const renderBackdrop = useCallback(

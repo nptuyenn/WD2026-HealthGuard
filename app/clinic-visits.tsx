@@ -24,7 +24,7 @@ import {
   Inbox,
 } from "lucide-react-native";
 import { colors, fonts, fontSizes, radius, shadows } from "@/theme";
-import { useAuth } from "@/store/auth";
+import { useActiveProfile } from "@/store/auth";
 import {
   listClinicVisits,
   deleteClinicVisit,
@@ -169,8 +169,7 @@ function VisitCard({ visit, expanded, onToggle, onDelete }: {
 
 export default function ClinicVisitsScreen() {
   const router = useRouter();
-  const user = useAuth((u) => u.user);
-  const profile = user?.profiles?.[0] ?? null;
+  const profile = useActiveProfile();
   const [visits, setVisits] = useState<ClinicVisit[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

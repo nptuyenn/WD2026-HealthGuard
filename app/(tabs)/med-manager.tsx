@@ -11,7 +11,7 @@ import MedForm, { type MedFormSubmit } from "@/components/med-manager/MedForm";
 import CabinetGrid from "@/components/med-manager/CabinetGrid";
 import AppointmentCalendar from "@/components/med-manager/AppointmentCalendar";
 import AppointmentForm from "@/components/med-manager/AppointmentForm";
-import { useAuth } from "@/store/auth";
+import { useActiveProfile } from "@/store/auth";
 import {
   listMedications,
   getToday,
@@ -34,8 +34,7 @@ import {
 const SEGMENTS = ["Lịch thuốc", "Tủ thuốc", "Tái khám"];
 
 export default function MedManagerScreen() {
-  const user = useAuth((s) => s.user);
-  const profile = user?.profiles?.[0] ?? null;
+  const profile = useActiveProfile();
 
   const [tab, setTab] = useState(0);
   const [events, setEvents] = useState<TimelineEvent[]>([]);

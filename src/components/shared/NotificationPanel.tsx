@@ -7,7 +7,7 @@ import BottomSheet, {
 } from "@gorhom/bottom-sheet";
 import { Pill, Calendar, AlertTriangle } from "lucide-react-native";
 import { colors, fonts, fontSizes } from "@/theme";
-import { useAuth } from "@/store/auth";
+import { useActiveProfile } from "@/store/auth";
 import { getToday, type TimelineEvent } from "@/lib/medications-api";
 import { listAppointments, type Appointment } from "@/lib/appointments-api";
 
@@ -31,8 +31,7 @@ function timeUntil(iso: string): string {
 }
 
 const NotificationPanel = forwardRef<BottomSheet, object>((_props, ref) => {
-  const user = useAuth((s) => s.user);
-  const profile = user?.profiles?.[0] ?? null;
+  const profile = useActiveProfile();
   const [items, setItems] = useState<NotifItem[]>([]);
   const [loading, setLoading] = useState(false);
 

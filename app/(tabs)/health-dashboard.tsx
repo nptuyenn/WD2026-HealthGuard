@@ -16,7 +16,7 @@ import MetricCardRow from "@/components/health-dashboard/MetricCardRow";
 import MainChart from "@/components/health-dashboard/MainChart";
 import AIInsightCard from "@/components/health-dashboard/AIInsightCard";
 import MetricForm from "@/components/health-dashboard/MetricForm";
-import { useAuth } from "@/store/auth";
+import { useActiveProfile } from "@/store/auth";
 import {
   getMetricSummary,
   createMetric,
@@ -27,8 +27,7 @@ import {
 } from "@/lib/health-metrics-api";
 
 export default function HealthDashboardScreen() {
-  const user = useAuth((s) => s.user);
-  const profile = user?.profiles?.[0] ?? null;
+  const profile = useActiveProfile();
   const metricFormRef = useRef<BottomSheet>(null);
 
   const [summary, setSummary] = useState<MetricSummary | null>(null);
