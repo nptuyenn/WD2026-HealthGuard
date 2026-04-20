@@ -50,6 +50,8 @@ export default function EmergencyCardScreen() {
 
   const handleSave = useCallback(
     async (data: {
+      dob: string | null;
+      gender: string | null;
       bloodType: string | null;
       allergies: string[];
       conditions: string[];
@@ -59,10 +61,14 @@ export default function EmergencyCardScreen() {
       if (!profile) return;
       setSaving(true);
       try {
-        if (data.bloodType !== profile.bloodType) {
+        const profileChanged =
+          data.bloodType !== profile.bloodType ||
+          data.dob !== profile.dob ||
+          data.gender !== profile.gender;
+        if (profileChanged) {
           await api(`/api/v1/profiles/${profile.id}`, {
             method: "PATCH",
-            body: JSON.stringify({ bloodType: data.bloodType }),
+            body: JSON.stringify({ bloodType: data.bloodType, dob: data.dob, gender: data.gender }),
           });
           await refreshUser();
         }
@@ -117,6 +123,7 @@ export default function EmergencyCardScreen() {
         <CardPreview3D
           fullName={profile.fullName}
           dob={profile.dob}
+          gender={profile.gender}
           bloodType={profile.bloodType}
           primaryContact={primaryContact}
           publicToken={card?.publicToken ?? null}
@@ -126,6 +133,8 @@ export default function EmergencyCardScreen() {
         />
 
         <EmergencyForm
+          dob={profile.dob}
+          gender={profile.gender}
           bloodType={profile.bloodType}
           allergies={card?.allergies ?? []}
           conditions={card?.conditions ?? []}

@@ -18,6 +18,7 @@ export type ExamLabResult = {
 export type ExamPrescriptionItem = {
   name: string;
   dosage?: string | null;
+  quantity?: number | null;
   instructions?: string | null;
 };
 

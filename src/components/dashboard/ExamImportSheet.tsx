@@ -169,7 +169,14 @@ const ExamImportSheet = forwardRef<BottomSheet, Props>(({ exam, onDone }, ref) =
                 </View>
                 {exam.prescription.map((rx, i) => (
                   <View key={i} style={s.rxRow}>
-                    <Text style={s.rxName}>{rx.name}</Text>
+                    <View style={s.rxHeader}>
+                      <Text style={s.rxName}>{rx.name}</Text>
+                      {rx.quantity != null && (
+                        <View style={s.qtyBadge}>
+                          <Text style={s.qtyText}>SL: {rx.quantity}</Text>
+                        </View>
+                      )}
+                    </View>
                     {rx.dosage && <Text style={s.rxSub}>Liều: {rx.dosage}</Text>}
                     {rx.instructions && <Text style={s.rxSub}>{rx.instructions}</Text>}
                   </View>
@@ -286,8 +293,11 @@ const s = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border.DEFAULT,
   },
-  rxName: { fontFamily: fonts.semibold, fontSize: 14, color: colors.text.DEFAULT },
+  rxHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  rxName: { fontFamily: fonts.semibold, fontSize: 14, color: colors.text.DEFAULT, flex: 1 },
   rxSub: { fontFamily: fonts.regular, fontSize: 12, color: colors.text.secondary, marginTop: 2 },
+  qtyBadge: { backgroundColor: colors.brand.light, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 },
+  qtyText: { fontFamily: fonts.medium, fontSize: 11, color: colors.brand.DEFAULT },
 
   apptCard: {
     padding: 14,

@@ -15,6 +15,7 @@ import BottomSheet, {
 } from "@gorhom/bottom-sheet";
 import { ChevronDown } from "lucide-react-native";
 import { colors, fonts, fontSizes, radius } from "@/theme";
+import DatePickerField from "@/components/shared/DatePickerField";
 import { METRIC_META, type MetricInput, type MetricType } from "@/lib/health-metrics-api";
 
 const PICKABLE: MetricType[] = [
@@ -35,6 +36,7 @@ const MetricForm = forwardRef<BottomSheet, Props>(({ onSave }, ref) => {
   const [value1, setValue1] = useState("");
   const [value2, setValue2] = useState("");
   const [notes, setNotes] = useState("");
+  const [recordedAt, setRecordedAt] = useState<Date>(new Date());
   const [submitting, setSubmitting] = useState(false);
 
   const renderBackdrop = (props: BottomSheetBackdropProps) => (
@@ -45,7 +47,7 @@ const MetricForm = forwardRef<BottomSheet, Props>(({ onSave }, ref) => {
   const meta = useMemo(() => METRIC_META[metricType], [metricType]);
 
   const reset = () => {
-    setValue1(""); setValue2(""); setNotes("");
+    setValue1(""); setValue2(""); setNotes(""); setRecordedAt(new Date());
   };
 
   const pickType = () =>
@@ -80,7 +82,7 @@ const MetricForm = forwardRef<BottomSheet, Props>(({ onSave }, ref) => {
         valueNum: v1,
         valueNum2: v2,
         unit: meta.unit,
-        recordedAt: new Date().toISOString(),
+        recordedAt: recordedAt.toISOString(),
         notes: notes.trim() || null,
       });
       reset();
@@ -96,7 +98,7 @@ const MetricForm = forwardRef<BottomSheet, Props>(({ onSave }, ref) => {
     <BottomSheet
       ref={ref}
       index={-1}
-      snapPoints={["70%"]}
+      snapPoints={["85%"]}
       enablePanDownToClose
       backdropComponent={renderBackdrop}
       backgroundStyle={s.sheetBg}
@@ -155,6 +157,14 @@ const MetricForm = forwardRef<BottomSheet, Props>(({ onSave }, ref) => {
               </View>
             )}
           </View>
+
+          <DatePickerField
+            label="Thời gian đo"
+            value={recordedAt}
+            onChange={setRecordedAt}
+            mode="datetime"
+            maximumDate={new Date()}
+          />
 
           <View style={s.field}>
             <Text style={s.label}>Ghi chú</Text>

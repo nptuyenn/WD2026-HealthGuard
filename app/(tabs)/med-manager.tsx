@@ -9,6 +9,7 @@ import SegmentedControl from "@/components/med-manager/SegmentedControl";
 import MedTimeline from "@/components/med-manager/MedTimeline";
 import MedForm, { type MedFormSubmit } from "@/components/med-manager/MedForm";
 import CabinetGrid from "@/components/med-manager/CabinetGrid";
+import CabinetForm, { type CabinetFormSubmit } from "@/components/med-manager/CabinetForm";
 import AppointmentCalendar from "@/components/med-manager/AppointmentCalendar";
 import AppointmentForm from "@/components/med-manager/AppointmentForm";
 import { useActiveProfile } from "@/store/auth";
@@ -16,6 +17,8 @@ import {
   listMedications,
   getToday,
   createMedication,
+  addMedicationSchedule,
+  deleteMedication,
   logDose,
   type Medication,
   type TimelineEvent,
@@ -27,9 +30,7 @@ import {
   type Appointment,
   type AppointmentInput,
 } from "@/lib/appointments-api";
-import {
-  scheduleMedicationReminders,
-} from "@/lib/med-notifications";
+import { scheduleMedicationReminders } from "@/lib/med-notifications";
 
 const SEGMENTS = ["Lịch thuốc", "Tủ thuốc", "Tái khám"];
 
@@ -42,7 +43,8 @@ export default function MedManagerScreen() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const medFormRef = useRef<BottomSheet>(null);
+  const scheduleFormRef = useRef<BottomSheet>(null);
+  const cabinetFormRef = useRef<BottomSheet>(null);
   const apptFormRef = useRef<BottomSheet>(null);
 
   const loadAll = useCallback(async () => {
@@ -64,29 +66,37 @@ export default function MedManagerScreen() {
     }
   }, [profile?.id]);
 
-  useEffect(() => {
-    loadAll();
-  }, [loadAll]);
+  useEffect(() => { loadAll(); }, [loadAll]);
+  useFocusEffect(useCallback(() => { loadAll(); }, [loadAll]));
 
-  useFocusEffect(
-    useCallback(() => {
-      loadAll();
-    }, [loadAll])
+  // "Lịch thuốc" — schedule existing or create+schedule new
+  const handleSchedule = useCallback(
+    async (data: MedFormSubmit) => {
+      if (!profile) return;
+      if (data.type === "existing") {
+        const med = medications.find((m) => m.id === data.medicationId);
+        await addMedicationSchedule(profile.id, data.medicationId, { timesOfDay: data.timesOfDay });
+        if (data.reminderOn && med) {
+          await scheduleMedicationReminders(med.id, med.name, med.dosage, med.unit, data.timesOfDay);
+        }
+      } else {
+        const med = await createMedication(profile.id, data.input);
+        if (data.reminderOn && med.schedules[0]?.timesOfDay.length) {
+          await scheduleMedicationReminders(
+            med.id, med.name, med.dosage, med.unit, med.schedules[0].timesOfDay
+          );
+        }
+      }
+      await loadAll();
+    },
+    [profile?.id, loadAll, medications]
   );
 
-  const handleCreateMed = useCallback(
-    async ({ input, reminderOn }: MedFormSubmit) => {
+  // "Tủ thuốc" — add to cabinet only, no schedule
+  const handleAddToCabinet = useCallback(
+    async ({ input }: CabinetFormSubmit) => {
       if (!profile) return;
-      const med = await createMedication(profile.id, input);
-      if (reminderOn && med.schedules[0]?.timesOfDay.length) {
-        await scheduleMedicationReminders(
-          med.id,
-          med.name,
-          med.dosage,
-          med.unit,
-          med.schedules[0].timesOfDay
-        );
-      }
+      await createMedication(profile.id, input);
       await loadAll();
     },
     [profile?.id, loadAll]
@@ -95,11 +105,7 @@ export default function MedManagerScreen() {
   const handleMarkTaken = useCallback(
     async (item: { scheduleId: string; scheduledAt: string; name: string }) => {
       try {
-        await logDose({
-          scheduleId: item.scheduleId,
-          scheduledAt: item.scheduledAt,
-          status: "taken",
-        });
+        await logDose({ scheduleId: item.scheduleId, scheduledAt: item.scheduledAt, status: "taken" });
         await loadAll();
       } catch (err: any) {
         Alert.alert("Lỗi", err?.message ?? "Không đánh dấu được.");
@@ -113,6 +119,19 @@ export default function MedManagerScreen() {
       if (!profile) return;
       await createAppointment(profile.id, input);
       await loadAll();
+    },
+    [profile?.id, loadAll]
+  );
+
+  const handleDeleteMedication = useCallback(
+    async (id: string) => {
+      if (!profile) return;
+      try {
+        await deleteMedication(profile.id, id);
+        await loadAll();
+      } catch (err: any) {
+        Alert.alert("Lỗi", err?.message ?? "Không xóa được.");
+      }
     },
     [profile?.id, loadAll]
   );
@@ -167,7 +186,7 @@ export default function MedManagerScreen() {
             <MedTimeline
               events={events}
               onMarkTaken={handleMarkTaken}
-              onAddPress={() => medFormRef.current?.expand()}
+              onAddPress={() => scheduleFormRef.current?.expand()}
             />
           </Animated.View>
         )}
@@ -175,7 +194,8 @@ export default function MedManagerScreen() {
           <Animated.View entering={FadeIn.duration(150)}>
             <CabinetGrid
               medications={medications}
-              onAddPress={() => medFormRef.current?.expand()}
+              onAddPress={() => cabinetFormRef.current?.expand()}
+              onDelete={handleDeleteMedication}
             />
           </Animated.View>
         )}
@@ -190,7 +210,8 @@ export default function MedManagerScreen() {
         )}
       </ScrollView>
 
-      <MedForm ref={medFormRef} onSave={handleCreateMed} />
+      <MedForm ref={scheduleFormRef} onSave={handleSchedule} medications={medications} />
+      <CabinetForm ref={cabinetFormRef} onSave={handleAddToCabinet} />
       <AppointmentForm ref={apptFormRef} onSave={handleCreateAppt} />
     </SafeAreaView>
   );

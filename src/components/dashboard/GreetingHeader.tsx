@@ -1,10 +1,7 @@
-import { useRef } from "react";
 import { View, Text, Pressable, StyleSheet, Alert } from "react-native";
 import { Bell, LogOut, ChevronDown } from "lucide-react-native";
-import BottomSheet from "@gorhom/bottom-sheet";
 import { colors, fonts, fontSizes } from "@/theme";
 import { useAuth, useActiveProfile } from "@/store/auth";
-import ProfileSwitcherSheet from "./ProfileSwitcherSheet";
 
 function getGreeting(hour: number): string {
   if (hour >= 5 && hour < 11) return "buổi sáng";
@@ -36,14 +33,14 @@ const AVATAR_COLORS: Record<string, string> = {
 
 interface Props {
   onNotificationPress?: () => void;
+  onProfilePress?: () => void;
 }
 
-export default function GreetingHeader({ onNotificationPress }: Props) {
+export default function GreetingHeader({ onNotificationPress, onProfilePress }: Props) {
   const profile = useActiveProfile();
   const user = useAuth((s) => s.user);
   const logout = useAuth((s) => s.logout);
   const profileCount = user?.profiles?.length ?? 0;
-  const switcherRef = useRef<BottomSheet>(null);
 
   const fullName = profile?.fullName ?? user?.email ?? "bạn";
   const rel = profile?.relationship ?? "self";
@@ -64,7 +61,7 @@ export default function GreetingHeader({ onNotificationPress }: Props) {
       <View style={styles.container}>
         <Pressable
           style={styles.left}
-          onPress={() => switcherRef.current?.expand()}
+          onPress={onProfilePress}
         >
           <View style={[styles.avatar, { backgroundColor: avatarColor + "22" }]}>
             <Text style={[styles.avatarText, { color: avatarColor }]}>
@@ -93,8 +90,6 @@ export default function GreetingHeader({ onNotificationPress }: Props) {
           </Pressable>
         </View>
       </View>
-
-      <ProfileSwitcherSheet ref={switcherRef} />
     </>
   );
 }

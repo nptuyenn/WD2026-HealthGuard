@@ -14,6 +14,7 @@ import type { EmergencyContact } from "@/lib/emergency-api";
 type Props = {
   fullName: string;
   dob: string | null;
+  gender: string | null;
   bloodType: string | null;
   primaryContact: EmergencyContact | null;
   publicToken: string | null;
@@ -62,6 +63,7 @@ export default function CardPreview3D(props: Props) {
               <CardFront
                 fullName={props.fullName}
                 dob={props.dob}
+                gender={props.gender}
                 bloodType={props.bloodType}
                 primaryContact={props.primaryContact}
                 publicToken={props.publicToken}

@@ -1,5 +1,6 @@
 import { useEffect } from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, Text, Pressable, StyleSheet, Alert } from "react-native";
+import { Trash2 } from "lucide-react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -35,10 +36,12 @@ export default function CabinetCard({
   item,
   width,
   index = 0,
+  onDelete,
 }: {
   item: CabinetItem;
   width: number;
   index?: number;
+  onDelete?: (id: string) => void;
 }) {
   const pct = item.quantityTotal > 0 ? item.quantityRemaining / item.quantityTotal : 0;
   const fillW = useSharedValue(0);
@@ -58,6 +61,12 @@ export default function CabinetCard({
         ? colors.warning.DEFAULT
         : colors.danger.DEFAULT,
   }));
+
+  const confirmDelete = () =>
+    Alert.alert("Xóa thuốc", `Xóa "${item.name}" khỏi tủ?`, [
+      { text: "Hủy", style: "cancel" },
+      { text: "Xóa", style: "destructive", onPress: () => onDelete?.(item.id) },
+    ]);
 
   const expired = isExpired(item.expiryDate);
   const lowStock =
@@ -110,6 +119,12 @@ export default function CabinetCard({
         )}
 
         <Text style={s.expiry}>HSD: {formatExpiry(item.expiryDate)}</Text>
+
+        {onDelete && (
+          <Pressable style={s.deleteBtn} onPress={confirmDelete}>
+            <Trash2 size={14} color={colors.danger.DEFAULT} strokeWidth={1.8} />
+          </Pressable>
+        )}
       </Pressable>
     </Animated.View>
   );
@@ -168,5 +183,9 @@ const s = StyleSheet.create({
     color: colors.text.muted,
     fontFamily: fonts.regular,
     marginTop: 4,
+  },
+  deleteBtn: {
+    marginTop: 8,
+    padding: 4,
   },
 });

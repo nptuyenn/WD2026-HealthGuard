@@ -8,11 +8,24 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
-import { X, Plus, QrCode, Save } from "lucide-react-native";
+import { X, Plus, QrCode, Save, ChevronDown } from "lucide-react-native";
 import { colors, fonts, fontSizes, radius, shadows, spacing } from "@/theme";
+import DatePickerField from "@/components/shared/DatePickerField";
 import type { EmergencyContact } from "@/lib/emergency-api";
 
+const GENDERS = [
+  { value: "male", label: "Nam" },
+  { value: "female", label: "Nữ" },
+  { value: "other", label: "Khác" },
+];
+
+function genderLabel(v: string | null) {
+  return GENDERS.find((g) => g.value === v)?.label ?? "—";
+}
+
 type Props = {
+  dob: string | null;
+  gender: string | null;
   bloodType: string | null;
   allergies: string[];
   conditions: string[];
@@ -21,6 +34,8 @@ type Props = {
   saving: boolean;
   hasToken: boolean;
   onSave: (data: {
+    dob: string | null;
+    gender: string | null;
     bloodType: string | null;
     allergies: string[];
     conditions: string[];
@@ -31,6 +46,8 @@ type Props = {
 };
 
 export default function EmergencyForm(props: Props) {
+  const [dob, setDob] = useState<Date | null>(props.dob ? new Date(props.dob) : null);
+  const [gender, setGender] = useState<string | null>(props.gender);
   const [bloodType, setBloodType] = useState(props.bloodType ?? "");
   const [allergies, setAllergies] = useState(props.allergies);
   const [conditions, setConditions] = useState(props.conditions);
@@ -38,6 +55,12 @@ export default function EmergencyForm(props: Props) {
   const [notes, setNotes] = useState(props.notes ?? "");
   const [allergyInput, setAllergyInput] = useState("");
   const [conditionInput, setConditionInput] = useState("");
+
+  const pickGender = () =>
+    Alert.alert("Giới tính", undefined,
+      GENDERS.map((g) => ({ text: g.label, onPress: () => setGender(g.value) }))
+        .concat([{ text: "Hủy", onPress: () => {} }])
+    );
 
   const addAllergy = () => {
     const v = allergyInput.trim();
@@ -80,6 +103,8 @@ export default function EmergencyForm(props: Props) {
       }
     }
     props.onSave({
+      dob: dob ? dob.toISOString() : null,
+      gender,
       bloodType: bloodType.trim() || null,
       allergies,
       conditions,
@@ -90,6 +115,26 @@ export default function EmergencyForm(props: Props) {
 
   return (
     <View style={s.container}>
+      <Section title="Thông tin cá nhân">
+        <DatePickerField
+          label="Ngày sinh"
+          value={dob}
+          onChange={setDob}
+          mode="date"
+          maximumDate={new Date()}
+          placeholder="Chọn ngày sinh"
+        />
+        <View style={s.genderRow}>
+          <Text style={s.fieldLabel}>Giới tính</Text>
+          <Pressable style={[s.input, s.selectRow]} onPress={pickGender}>
+            <Text style={[s.selectText, !gender && { color: colors.text.muted }]}>
+              {gender ? genderLabel(gender) : "Chọn"}
+            </Text>
+            <ChevronDown size={14} color={colors.text.muted} strokeWidth={1.8} />
+          </Pressable>
+        </View>
+      </Section>
+
       <Section title="Nhóm máu">
         <TextInput
           style={s.input}
@@ -310,6 +355,11 @@ const s = StyleSheet.create({
     fontFamily: fonts.medium,
   },
   sectionBody: { padding: 16, paddingTop: 4, gap: 12 },
+
+  genderRow: { marginTop: 4 },
+  fieldLabel: { fontSize: 12, fontFamily: fonts.medium, color: colors.text.secondary, marginBottom: 4 },
+  selectRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  selectText: { fontSize: fontSizes.base, color: colors.text.DEFAULT, fontFamily: fonts.regular },
 
   input: {
     borderWidth: 1,

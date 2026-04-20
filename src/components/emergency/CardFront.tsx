@@ -5,9 +5,12 @@ import { colors, fonts, radius } from "@/theme";
 import { API_URL } from "@/lib/api";
 import type { EmergencyContact } from "@/lib/emergency-api";
 
+const GENDER_LABELS: Record<string, string> = { male: "Nam", female: "Nữ", other: "Khác" };
+
 type Props = {
   fullName: string;
   dob: string | null;
+  gender: string | null;
   bloodType: string | null;
   primaryContact: EmergencyContact | null;
   publicToken: string | null;
@@ -18,9 +21,10 @@ function initials(name: string) {
   return (parts[0]?.[0] ?? "").toUpperCase() + (parts.at(-1)?.[0] ?? "").toUpperCase();
 }
 
-export default function CardFront({ fullName, dob, bloodType, primaryContact, publicToken }: Props) {
+export default function CardFront({ fullName, dob, gender, bloodType, primaryContact, publicToken }: Props) {
   const qrUrl = publicToken ? `${API_URL}/emergency/${publicToken}` : "";
   const dobStr = dob ? new Date(dob).toLocaleDateString("vi-VN") : "—";
+  const genderStr = gender ? GENDER_LABELS[gender] ?? gender : null;
 
   return (
     <LinearGradient
@@ -40,7 +44,10 @@ export default function CardFront({ fullName, dob, bloodType, primaryContact, pu
         </View>
         <View style={styles.info}>
           <Text style={styles.fullName} numberOfLines={1}>{fullName.toUpperCase()}</Text>
-          <Text style={styles.infoText}>Sinh: {dobStr}</Text>
+          <View style={styles.dobRow}>
+            <Text style={styles.infoText}>Sinh: {dobStr}</Text>
+            {genderStr && <Text style={styles.genderBadge}>{genderStr}</Text>}
+          </View>
           <View style={styles.bloodRow}>
             <Text style={styles.infoText}>Nhóm máu: </Text>
             <Text style={styles.bloodType}>{bloodType ?? "—"}</Text>
@@ -88,6 +95,11 @@ const styles = StyleSheet.create({
     color: colors.text.DEFAULT,
   },
   infoText: { fontSize: 12, color: colors.text.secondary, fontFamily: fonts.regular },
+  dobRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  genderBadge: {
+    fontSize: 10, fontFamily: fonts.medium, color: colors.brand.DEFAULT,
+    backgroundColor: colors.brand.light, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6,
+  },
   bloodRow: { flexDirection: "row", alignItems: "center" },
   bloodType: { fontSize: 12, fontFamily: fonts.bold, color: colors.danger.DEFAULT },
   bottom: {
