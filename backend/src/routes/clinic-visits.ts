@@ -30,6 +30,7 @@ const labSchema = z.object({
 const rxSchema = z.object({
   name: z.string().min(1),
   dosage: z.string().nullable().optional(),
+  quantity: z.number().nullable().optional(),
   instructions: z.string().nullable().optional(),
 });
 
@@ -139,6 +140,27 @@ clinicVisitsRouter.post("/from-exam", requireAuth, async (req: AuthedRequest, re
             notes: `Từ phiếu khám${exam.clinicName ? ` · ${exam.clinicName}` : ""}`,
           })),
         });
+      }
+
+      // Create Medication entries from prescription
+      if (prescription.length > 0) {
+        await Promise.all(
+          prescription.map((rx: any) =>
+            tx.medication.create({
+              data: {
+                profileId,
+                name: rx.name,
+                dosage: rx.dosage ?? null,
+                unit: null,
+                instructions: rx.instructions ?? null,
+                stockTotal: rx.quantity ?? null,
+                stockRemaining: rx.quantity ?? null,
+                isActive: true,
+                startDate: visitDate,
+              },
+            })
+          )
+        );
       }
 
       // Create appointment if provided

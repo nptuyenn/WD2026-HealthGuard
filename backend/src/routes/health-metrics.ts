@@ -218,16 +218,22 @@ ${JSON.stringify(metricsPayload, null, 2)}
 Hãy phân tích xu hướng và đưa ra nhận xét theo schema JSON đã cho.`;
 
     const ai = getGemini();
-    const resp = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-      config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
-        responseMimeType: "application/json",
-        responseSchema: HEALTH_ANALYSIS_SCHEMA,
-        temperature: 0.3,
-      },
-    });
+    let resp;
+    try {
+      resp = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: prompt,
+        config: {
+          systemInstruction: SYSTEM_INSTRUCTION,
+          responseMimeType: "application/json",
+          responseSchema: HEALTH_ANALYSIS_SCHEMA,
+          temperature: 0.3,
+          thinkingConfig: { thinkingBudget: 0 },
+        },
+      });
+    } catch (e: any) {
+      throw new HttpError(502, `Gemini API lỗi: ${e?.message ?? "unknown"}`);
+    }
 
     const text = resp.text;
     if (!text) throw new HttpError(502, "Gemini trả về rỗng");

@@ -29,10 +29,10 @@ const FORM_HTML = `<!DOCTYPE html>
   .accordion-body-inner{padding-top:12px}
   .row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
   .row-lab{display:grid;grid-template-columns:3fr 1fr 1fr 2fr;gap:10px;margin-bottom:10px;align-items:end}
-  .row-rx{display:grid;grid-template-columns:2fr 1fr 2fr;gap:10px;margin-bottom:10px;align-items:end}
+  .row-rx{display:grid;grid-template-columns:2fr 1fr 1fr 2fr;gap:10px;margin-bottom:10px;align-items:end}
   .col-head{font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;padding-bottom:4px}
   .col-heads-lab{display:grid;grid-template-columns:3fr 1fr 1fr 2fr;gap:10px;margin-bottom:6px}
-  .col-heads-rx{display:grid;grid-template-columns:2fr 1fr 2fr;gap:10px;margin-bottom:6px}
+  .col-heads-rx{display:grid;grid-template-columns:2fr 1fr 1fr 2fr;gap:10px;margin-bottom:6px}
   .field{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
   label{font-size:12px;font-weight:500;color:#475569}
   input,textarea{border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;font-size:14px;color:#0f172a;outline:none;transition:border-color .15s;font-family:inherit}
@@ -155,12 +155,14 @@ const FORM_HTML = `<!DOCTYPE html>
           <div class="col-heads-rx">
             <div class="col-head">Tên thuốc</div>
             <div class="col-head">Liều dùng</div>
+            <div class="col-head">Số lượng</div>
             <div class="col-head">Hướng dẫn sử dụng</div>
           </div>
           ${[1, 2, 3, 4].map(i => `
           <div class="row-rx">
             <input name="rx${i}_name" placeholder="Ví dụ: Amlodipine" />
             <input name="rx${i}_dosage" placeholder="5 mg" />
+            <input name="rx${i}_quantity" type="number" min="1" placeholder="30" />
             <input name="rx${i}_instructions" placeholder="1 viên/ngày, uống buổi sáng" />
           </div>`).join("")}
         </div>
@@ -318,8 +320,9 @@ router.post("/", async (req: Request, res: Response) => {
     const name = body[`rx${i}_name`]?.trim();
     const dosage = body[`rx${i}_dosage`]?.trim();
     const instructions = body[`rx${i}_instructions`]?.trim();
+    const quantity = toNum(body[`rx${i}_quantity`]);
     if (name) {
-      prescription.push({ name, dosage: dosage || null, instructions: instructions || null });
+      prescription.push({ name, dosage: dosage || null, quantity, instructions: instructions || null });
     }
   }
 
