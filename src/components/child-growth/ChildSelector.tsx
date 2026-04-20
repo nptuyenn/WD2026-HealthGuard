@@ -1,48 +1,53 @@
-import { FlatList, View, Text, Pressable, StyleSheet, Alert } from "react-native";
+import { FlatList, View, Text, Pressable, StyleSheet } from "react-native";
 import { Plus } from "lucide-react-native";
 import { colors, fonts, radius } from "@/theme";
-import { mockChildren } from "@/lib/mock-data";
+import type { Profile } from "@/store/auth";
 
-const AVATAR_COLORS = [colors.brand.light, colors.purple.light, colors.warning.light, colors.success.light];
+const AVATAR_COLORS = [
+  colors.brand.light,
+  colors.purple.light,
+  colors.warning.light,
+  colors.success.light,
+];
 
-interface Props {
-  selectedId: string;
-  onSelect: (id: string) => void;
+function initials(name: string) {
+  return (name.trim().split(/\s+/).pop()?.charAt(0) ?? "B").toUpperCase();
 }
 
-export default function ChildSelector({ selectedId, onSelect }: Props) {
+interface Props {
+  profiles: Profile[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  onAddPress: () => void;
+}
+
+export default function ChildSelector({ profiles, selectedId, onSelect, onAddPress }: Props) {
   return (
     <FlatList
       horizontal
-      data={mockChildren}
-      keyExtractor={(c) => c.id}
+      data={profiles}
+      keyExtractor={(p) => p.id}
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={s.list}
       ListFooterComponent={
-        <Pressable style={s.item} onPress={() => Alert.alert("Thêm bé")}>
+        <Pressable style={s.item} onPress={onAddPress}>
           <View style={s.addAvatar}>
             <Plus size={20} color={colors.text.muted} strokeWidth={2} />
           </View>
           <Text style={s.addLabel}>Thêm bé</Text>
         </Pressable>
       }
+      ListEmptyComponent={null}
       renderItem={({ item, index }) => {
         const selected = item.id === selectedId;
-        const initials = item.name.split(" ").pop()?.charAt(0).toUpperCase() ?? "B";
         const bg = AVATAR_COLORS[index % AVATAR_COLORS.length];
         return (
           <Pressable style={s.item} onPress={() => onSelect(item.id)}>
-            <View
-              style={[
-                s.avatar,
-                { backgroundColor: bg },
-                selected && s.avatarSelected,
-              ]}
-            >
-              <Text style={s.initials}>{initials}</Text>
+            <View style={[s.avatar, { backgroundColor: bg }, selected && s.avatarSelected]}>
+              <Text style={s.initials}>{initials(item.fullName)}</Text>
             </View>
             <Text style={[s.label, selected && s.labelSelected]} numberOfLines={1}>
-              {item.name}
+              {item.fullName}
             </Text>
           </Pressable>
         );
@@ -61,15 +66,8 @@ const s = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  avatarSelected: {
-    borderWidth: 2,
-    borderColor: colors.brand.DEFAULT,
-  },
-  initials: {
-    fontFamily: fonts.bold,
-    fontSize: 16,
-    color: colors.text.DEFAULT,
-  },
+  avatarSelected: { borderWidth: 2, borderColor: colors.brand.DEFAULT },
+  initials: { fontFamily: fonts.bold, fontSize: 16, color: colors.text.DEFAULT },
   label: {
     fontSize: 12,
     fontFamily: fonts.regular,
@@ -78,10 +76,7 @@ const s = StyleSheet.create({
     textAlign: "center",
     opacity: 0.6,
   },
-  labelSelected: {
-    fontFamily: fonts.semibold,
-    opacity: 1,
-  },
+  labelSelected: { fontFamily: fonts.semibold, opacity: 1 },
   addAvatar: {
     width: 48,
     height: 48,

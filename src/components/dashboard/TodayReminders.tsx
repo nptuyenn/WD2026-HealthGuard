@@ -1,143 +1,168 @@
-import { View, Text, Pressable, StyleSheet } from "react-native";
-import { Pill, Syringe, Stethoscope, CheckCircle } from "lucide-react-native";
+import { useCallback, useEffect, useState } from "react";
+import { View, Text, Pressable, StyleSheet, ActivityIndicator } from "react-native";
+import { Pill, Stethoscope, CheckCircle } from "lucide-react-native";
+import { useFocusEffect } from "expo-router";
 import { colors, fonts, fontSizes, radius, shadows } from "@/theme";
-import {
-  mockMedLogs,
-  mockMedications,
-  mockAppointments,
-} from "@/lib/mock-data";
+import { useActiveProfile } from "@/store/auth";
+import { getToday, logDose, type TimelineEvent } from "@/lib/medications-api";
+import { listAppointments, type Appointment } from "@/lib/appointments-api";
 
-const TODAY = "2026-04-12";
 const MAX_ITEMS = 5;
 
-type ReminderType = "medication" | "vaccination" | "appointment";
-
-interface Reminder {
-  id: string;
-  type: ReminderType;
-  name: string;
-  detail: string;
-  time: string;
-  status: "taken" | "pending" | "upcoming";
+function formatTime(timeStr: string): string {
+  return timeStr.slice(0, 5);
 }
 
-function buildReminders(): Reminder[] {
-  const medReminders: Reminder[] = mockMedLogs
-    .filter((log) => log.scheduledTime.startsWith(TODAY))
-    .map((log) => {
-      const med = mockMedications.find((m) => m.id === log.medicationId);
-      return {
-        id: log.id,
-        type: "medication",
-        name: med?.name ?? "Thuốc",
-        detail: `${med?.dosage}${med?.unit} — ${med?.instructions}`,
-        time: log.scheduledTime.split("T")[1],
-        status: log.status as "taken" | "pending",
-      };
-    });
-
-  const apptReminders: Reminder[] = mockAppointments
-    .filter((a) => a.status === "upcoming")
-    .slice(0, 1)
-    .map((a) => ({
-      id: a.id,
-      type: "appointment",
-      name: a.title,
-      detail: `${a.doctorName} — ${a.hospital}`,
-      time: a.appointmentDate.split("T")[1],
-      status: "upcoming" as const,
-    }));
-
-  return [...medReminders, ...apptReminders];
+function formatApptTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
 }
 
-const ICON_CONFIG: Record<
-  ReminderType,
-  { icon: typeof Pill; bg: string; color: string }
-> = {
-  medication: {
-    icon: Pill,
-    bg: colors.brand.light,
-    color: colors.brand.DEFAULT,
-  },
-  vaccination: {
-    icon: Syringe,
-    bg: colors.warning.light,
-    color: colors.warning.DEFAULT,
-  },
-  appointment: {
-    icon: Stethoscope,
-    bg: colors.purple.light,
-    color: colors.purple.DEFAULT,
-  },
-};
-
-function ReminderItem({ item }: { item: Reminder }) {
-  const cfg = ICON_CONFIG[item.type];
-  const Icon = cfg.icon;
-  const isDone = item.status === "taken";
-
+function MedItem({
+  event,
+  onToggle,
+}: {
+  event: TimelineEvent;
+  onToggle: (event: TimelineEvent) => void;
+}) {
+  const isDone = event.status === "taken";
   return (
     <View style={[styles.itemCard, isDone && styles.itemDone]}>
-      <View style={[styles.iconCircle, { backgroundColor: cfg.bg }]}>
-        <Icon size={20} color={cfg.color} strokeWidth={1.8} />
+      <View style={[styles.iconCircle, { backgroundColor: colors.brand.light }]}>
+        <Pill size={20} color={colors.brand.DEFAULT} strokeWidth={1.8} />
       </View>
-
       <View style={styles.itemInfo}>
-        <Text
-          style={[styles.itemName, isDone && styles.itemNameDone]}
-          numberOfLines={1}
-        >
-          {item.name}
+        <Text style={[styles.itemName, isDone && styles.itemNameDone]} numberOfLines={1}>
+          {event.medicationName}
         </Text>
         <Text style={styles.itemDetail} numberOfLines={1}>
-          {item.detail}
+          {[event.dosage, event.unit].filter(Boolean).join("")}
+          {event.instructions ? ` — ${event.instructions}` : ""}
         </Text>
       </View>
-
       <View style={styles.itemRight}>
-        <Text style={styles.itemTime}>{item.time}</Text>
-        {item.type === "medication" ? (
-          <Pressable onPress={() => {}}>
-            <CheckCircle
-              size={24}
-              color={
-                isDone ? colors.success.DEFAULT : colors.text.muted
-              }
-              strokeWidth={1.8}
-            />
-          </Pressable>
-        ) : (
-          <Text style={styles.detailLink}>Chi tiết</Text>
-        )}
+        <Text style={styles.itemTime}>{formatTime(event.scheduledTime)}</Text>
+        <Pressable onPress={() => !isDone && onToggle(event)}>
+          <CheckCircle
+            size={24}
+            color={isDone ? colors.success.DEFAULT : colors.text.muted}
+            strokeWidth={1.8}
+          />
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function ApptItem({ appt }: { appt: Appointment }) {
+  return (
+    <View style={styles.itemCard}>
+      <View style={[styles.iconCircle, { backgroundColor: colors.purple.light }]}>
+        <Stethoscope size={20} color={colors.purple.DEFAULT} strokeWidth={1.8} />
+      </View>
+      <View style={styles.itemInfo}>
+        <Text style={styles.itemName} numberOfLines={1}>{appt.title}</Text>
+        <Text style={styles.itemDetail} numberOfLines={1}>
+          {[appt.doctorName, appt.location].filter(Boolean).join(" — ")}
+        </Text>
+      </View>
+      <View style={styles.itemRight}>
+        <Text style={styles.itemTime}>{formatApptTime(appt.scheduledAt)}</Text>
+        <Text style={styles.detailLink}>Sắp tới</Text>
       </View>
     </View>
   );
 }
 
 export default function TodayReminders() {
-  const reminders = buildReminders();
-  const visible = reminders.slice(0, MAX_ITEMS);
-  const hasMore = reminders.length > MAX_ITEMS;
+  const profile = useActiveProfile();
+  const [events, setEvents] = useState<TimelineEvent[]>([]);
+  const [appts, setAppts] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    if (!profile) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const [todayEvents, appointments] = await Promise.all([
+        getToday(profile.id),
+        listAppointments(profile.id),
+      ]);
+      setEvents(todayEvents);
+      const now = new Date();
+      const upcoming = appointments
+        .filter((a) => a.status === "upcoming" && new Date(a.scheduledAt) >= now)
+        .slice(0, 1);
+      setAppts(upcoming);
+    } catch {
+      setEvents([]);
+      setAppts([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [profile?.id]);
+
+  useEffect(() => { load(); }, [load]);
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  const handleToggle = useCallback(async (event: TimelineEvent) => {
+    try {
+      await logDose({ scheduleId: event.scheduleId, scheduledAt: event.scheduledAt, status: "taken" });
+      setEvents((prev) =>
+        prev.map((e) =>
+          e.eventKey === event.eventKey ? { ...e, status: "taken" } : e
+        )
+      );
+    } catch {}
+  }, []);
+
+  if (loading) {
+    return (
+      <View>
+        <View style={styles.header}>
+          <Text style={styles.headerLabel}>NHẮC NHỞ HÔM NAY</Text>
+        </View>
+        <View style={{ paddingVertical: 24, alignItems: "center" }}>
+          <ActivityIndicator color={colors.brand.DEFAULT} />
+        </View>
+      </View>
+    );
+  }
+
+  const allItems = [...events, ...appts];
+  const visible = allItems.slice(0, MAX_ITEMS);
+  const hasMore = allItems.length > MAX_ITEMS;
+
+  if (visible.length === 0) {
+    return (
+      <View>
+        <View style={styles.header}>
+          <Text style={styles.headerLabel}>NHẮC NHỞ HÔM NAY</Text>
+        </View>
+        <Text style={styles.emptyText}>Không có nhắc nhở nào hôm nay.</Text>
+      </View>
+    );
+  }
 
   return (
     <View>
       <View style={styles.header}>
         <Text style={styles.headerLabel}>NHẮC NHỞ HÔM NAY</Text>
         <View style={styles.countBadge}>
-          <Text style={styles.countText}>{reminders.length}</Text>
+          <Text style={styles.countText}>{allItems.length}</Text>
         </View>
       </View>
 
       <View style={styles.list}>
-        {visible.map((item) => (
-          <ReminderItem key={item.id} item={item} />
-        ))}
+        {visible.map((item) =>
+          "eventKey" in item ? (
+            <MedItem key={(item as TimelineEvent).eventKey} event={item as TimelineEvent} onToggle={handleToggle} />
+          ) : (
+            <ApptItem key={(item as Appointment).id} appt={item as Appointment} />
+          )
+        )}
       </View>
 
-      {hasMore && (
-        <Text style={styles.seeAll}>Xem tất cả →</Text>
-      )}
+      {hasMore && <Text style={styles.seeAll}>Xem tất cả →</Text>}
     </View>
   );
 }
@@ -170,9 +195,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     color: "#FFFFFF",
   },
-  list: {
-    gap: 8,
-  },
+  list: { gap: 8 },
   itemCard: {
     backgroundColor: colors.surface.card,
     borderRadius: radius.md,
@@ -183,9 +206,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     ...shadows.card,
   },
-  itemDone: {
-    opacity: 0.5,
-  },
+  itemDone: { opacity: 0.5 },
   iconCircle: {
     width: 40,
     height: 40,
@@ -193,27 +214,20 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  itemInfo: {
-    flex: 1,
-  },
+  itemInfo: { flex: 1 },
   itemName: {
     fontFamily: fonts.medium,
     fontSize: fontSizes.base,
     color: colors.text.DEFAULT,
   },
-  itemNameDone: {
-    textDecorationLine: "line-through",
-  },
+  itemNameDone: { textDecorationLine: "line-through" },
   itemDetail: {
     fontSize: fontSizes.sm,
     color: colors.text.secondary,
     fontFamily: fonts.regular,
     marginTop: 1,
   },
-  itemRight: {
-    alignItems: "flex-end",
-    gap: 4,
-  },
+  itemRight: { alignItems: "flex-end", gap: 4 },
   itemTime: {
     fontFamily: fonts.mono,
     fontSize: 13,
@@ -230,5 +244,12 @@ const styles = StyleSheet.create({
     textAlign: "right",
     marginTop: 8,
     fontFamily: fonts.medium,
+  },
+  emptyText: {
+    textAlign: "center",
+    color: colors.text.muted,
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    paddingVertical: 16,
   },
 });

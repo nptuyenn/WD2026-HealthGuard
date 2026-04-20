@@ -8,44 +8,36 @@ import Animated, {
   withTiming,
   FadeInLeft,
 } from "react-native-reanimated";
-import {
-  CheckCircle2,
-  AlertCircle,
-  Clock,
-  Circle,
-  Check,
-} from "lucide-react-native";
+import { CheckCircle2, AlertCircle, Clock, Circle, Check } from "lucide-react-native";
 import { colors, fonts, radius } from "@/theme";
+import type { Vaccination } from "@/lib/child-growth-api";
 
-export interface VaccinationRecord {
-  id: string;
-  vaccineName: string;
-  doseNumber: number;
-  scheduledDate: string;
-  actualDate: string | null;
-  status: "completed" | "overdue" | "pending";
-}
-
-const TODAY = "2026-04-13";
 const SOON_DAYS = 30;
 
 function isUpcoming(date: string) {
-  const diff = (new Date(date).getTime() - new Date(TODAY).getTime()) / 86400000;
+  const diff = (new Date(date).getTime() - Date.now()) / 86400000;
   return diff >= 0 && diff <= SOON_DAYS;
 }
 
-export default function VaccinationItem({ item, index = 0 }: { item: VaccinationRecord; index?: number }) {
-  const { status, vaccineName, doseNumber, scheduledDate, actualDate } = item;
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString("vi-VN");
+}
 
-  // Overdue pulse on the icon
+type Props = {
+  item: Vaccination;
+  index?: number;
+  onMarkCompleted: (vax: Vaccination) => void;
+};
+
+export default function VaccinationItem({ item, index = 0, onMarkCompleted }: Props) {
+  const { status, vaccineName, doseNumber, scheduledDate, administeredAt } = item;
+
   const pulseOpacity = useSharedValue(1);
   useEffect(() => {
     if (status === "overdue") {
       pulseOpacity.value = withRepeat(
-        withSequence(
-          withTiming(0.4, { duration: 800 }),
-          withTiming(1, { duration: 800 })
-        ),
+        withSequence(withTiming(0.4, { duration: 800 }), withTiming(1, { duration: 800 })),
         -1
       );
     } else {
@@ -57,11 +49,6 @@ export default function VaccinationItem({ item, index = 0 }: { item: Vaccination
   const upcoming = status === "pending" && isUpcoming(scheduledDate);
   const future = status === "pending" && !upcoming;
 
-  const formatDate = (iso: string) => {
-    const [y, m, d] = iso.split("-");
-    return `${d}/${m}/${y}`;
-  };
-
   const bg =
     status === "completed"
       ? "rgba(16,185,129,0.08)"
@@ -72,66 +59,61 @@ export default function VaccinationItem({ item, index = 0 }: { item: Vaccination
       : "transparent";
 
   const borderStyle =
-    status === "overdue"
-      ? { borderWidth: 1, borderColor: "rgba(239,68,68,0.2)" }
-      : {};
+    status === "overdue" ? { borderWidth: 1, borderColor: "rgba(239,68,68,0.2)" } : {};
+
+  const confirmMark = () =>
+    Alert.alert("Ghi nhận tiêm", `${vaccineName} — Mũi ${doseNumber}?`, [
+      { text: "Hủy", style: "cancel" },
+      { text: "Đã tiêm", onPress: () => onMarkCompleted(item) },
+    ]);
 
   return (
     <Animated.View entering={FadeInLeft.duration(200).delay(index * 40)}>
-    <View style={[s.row, { backgroundColor: bg }, borderStyle]}>
-      {/* Status icon */}
-      <View style={s.iconWrap}>
+      <View style={[s.row, { backgroundColor: bg }, borderStyle]}>
+        <View style={s.iconWrap}>
+          {status === "completed" && (
+            <CheckCircle2 size={20} color={colors.success.DEFAULT} strokeWidth={1.8} />
+          )}
+          {status === "overdue" && (
+            <Animated.View style={pulseStyle}>
+              <AlertCircle size={20} color={colors.danger.DEFAULT} strokeWidth={1.8} />
+            </Animated.View>
+          )}
+          {upcoming && <Clock size={20} color={colors.warning.DEFAULT} strokeWidth={1.8} />}
+          {future && <Circle size={20} color={colors.text.muted} strokeWidth={1.8} />}
+          {status === "skipped" && <Circle size={20} color={colors.text.muted} strokeWidth={1.8} />}
+        </View>
+
+        <View style={s.info}>
+          <Text style={s.name}>
+            {vaccineName} — Mũi {doseNumber}
+          </Text>
+          {status === "completed" && administeredAt && (
+            <Text style={[s.date, { color: colors.success.DEFAULT }]}>
+              Đã tiêm: {formatDate(administeredAt)}
+            </Text>
+          )}
+          {status === "overdue" && (
+            <Text style={[s.date, s.overdue]}>
+              Quá hạn! Lịch: {formatDate(scheduledDate)}
+            </Text>
+          )}
+          {(upcoming || future) && (
+            <Text style={[s.date, { color: colors.text.muted }]}>
+              Dự kiến: {formatDate(scheduledDate)}
+            </Text>
+          )}
+        </View>
+
+        {(status === "overdue" || upcoming) && (
+          <Pressable style={s.actionBtn} onPress={confirmMark}>
+            <Text style={s.actionText}>Ghi nhận</Text>
+          </Pressable>
+        )}
         {status === "completed" && (
-          <CheckCircle2 size={20} color={colors.success.DEFAULT} strokeWidth={1.8} />
-        )}
-        {status === "overdue" && (
-          <Animated.View style={pulseStyle}>
-            <AlertCircle size={20} color={colors.danger.DEFAULT} strokeWidth={1.8} />
-          </Animated.View>
-        )}
-        {upcoming && (
-          <Clock size={20} color={colors.warning.DEFAULT} strokeWidth={1.8} />
-        )}
-        {future && (
-          <Circle size={20} color={colors.text.muted} strokeWidth={1.8} />
+          <Check size={16} color={colors.success.DEFAULT} strokeWidth={2} />
         )}
       </View>
-
-      {/* Info */}
-      <View style={s.info}>
-        <Text style={s.name}>
-          {vaccineName} — Mũi {doseNumber}
-        </Text>
-        {status === "completed" && actualDate && (
-          <Text style={[s.date, { color: colors.success.DEFAULT }]}>
-            Đã tiêm: {formatDate(actualDate)}
-          </Text>
-        )}
-        {status === "overdue" && (
-          <Text style={[s.date, s.overdue]}>
-            Quá hạn! Lịch: {formatDate(scheduledDate)}
-          </Text>
-        )}
-        {(upcoming || future) && (
-          <Text style={[s.date, { color: colors.text.muted }]}>
-            Dự kiến: {formatDate(scheduledDate)}
-          </Text>
-        )}
-      </View>
-
-      {/* Action */}
-      {(status === "overdue" || upcoming) && (
-        <Pressable
-          style={s.actionBtn}
-          onPress={() => Alert.alert("Ghi nhận", `Ghi nhận tiêm ${vaccineName}?`)}
-        >
-          <Text style={s.actionText}>Ghi nhận</Text>
-        </Pressable>
-      )}
-      {status === "completed" && (
-        <Check size={16} color={colors.success.DEFAULT} strokeWidth={2} />
-      )}
-    </View>
     </Animated.View>
   );
 }

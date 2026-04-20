@@ -13,6 +13,7 @@ import type { Medication } from "@/lib/medications-api";
 interface Props {
   medications: Medication[];
   onAddPress: () => void;
+  onDelete: (id: string) => void;
 }
 
 function toCabinetItem(m: Medication): CabinetItem {
@@ -26,7 +27,7 @@ function toCabinetItem(m: Medication): CabinetItem {
   };
 }
 
-export default function CabinetGrid({ medications, onAddPress }: Props) {
+export default function CabinetGrid({ medications, onAddPress, onDelete }: Props) {
   const { width: screenWidth } = useWindowDimensions();
   const cardWidth = (screenWidth - 48) / 2;
   const items = medications.map(toCabinetItem);
@@ -51,7 +52,7 @@ export default function CabinetGrid({ medications, onAddPress }: Props) {
           columnWrapperStyle={s.columnWrapper}
           contentContainerStyle={s.listContent}
           renderItem={({ item, index }) => (
-            <CabinetCard item={item} width={cardWidth} index={index} />
+            <CabinetCard item={item} width={cardWidth} index={index} onDelete={onDelete} />
           )}
         />
       )}

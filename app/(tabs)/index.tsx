@@ -10,9 +10,11 @@ import TodayReminders from "@/components/dashboard/TodayReminders";
 import HealthSummaryChart from "@/components/dashboard/HealthSummaryChart";
 import QuickActions from "@/components/dashboard/QuickActions";
 import NotificationPanel from "@/components/shared/NotificationPanel";
+import ProfileSwitcherSheet from "@/components/dashboard/ProfileSwitcherSheet";
 
 export default function Dashboard() {
   const notifSheetRef = useRef<BottomSheet>(null);
+  const profileSheetRef = useRef<BottomSheet>(null);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -22,7 +24,10 @@ export default function Dashboard() {
         showsVerticalScrollIndicator={false}
       >
         <Animated.View entering={FadeInUp.duration(300).delay(0)}>
-          <GreetingHeader onNotificationPress={() => notifSheetRef.current?.expand()} />
+          <GreetingHeader
+            onNotificationPress={() => notifSheetRef.current?.expand()}
+            onProfilePress={() => profileSheetRef.current?.expand()}
+          />
         </Animated.View>
 
         <Animated.View entering={FadeInUp.duration(300).delay(100)}>
@@ -52,6 +57,7 @@ export default function Dashboard() {
       </ScrollView>
 
       <NotificationPanel ref={notifSheetRef} />
+      <ProfileSwitcherSheet ref={profileSheetRef} />
     </SafeAreaView>
   );
 }

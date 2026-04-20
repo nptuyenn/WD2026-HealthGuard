@@ -75,6 +75,24 @@ export async function deleteMedication(profileId: string, id: string) {
   return api<void>(`/api/v1/profiles/${profileId}/medications/${id}`, { method: "DELETE" });
 }
 
+export async function updateMedication(profileId: string, id: string, input: Partial<MedicationInput>) {
+  return api<Medication>(`/api/v1/profiles/${profileId}/medications/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function addMedicationSchedule(
+  profileId: string,
+  medicationId: string,
+  schedule: { timesOfDay: string[]; daysOfWeek?: number[] }
+) {
+  return api<MedicationSchedule>(
+    `/api/v1/profiles/${profileId}/medications/${medicationId}/schedules`,
+    { method: "POST", body: JSON.stringify(schedule) }
+  );
+}
+
 export async function logDose(input: {
   scheduleId: string;
   scheduledAt: string;

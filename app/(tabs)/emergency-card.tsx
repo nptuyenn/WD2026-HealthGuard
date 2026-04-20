@@ -13,7 +13,7 @@ import { colors, fonts, fontSizes, spacing } from "@/theme";
 import CardPreview3D from "@/components/emergency/CardPreview3D";
 import EmergencyForm from "@/components/emergency/EmergencyForm";
 import QRShareSheet from "@/components/emergency/QRShareSheet";
-import { useAuth } from "@/store/auth";
+import { useAuth, useActiveProfile } from "@/store/auth";
 import {
   getEmergencyCard,
   upsertEmergencyCard,
@@ -24,9 +24,8 @@ import { api } from "@/lib/api";
 
 export default function EmergencyCardScreen() {
   const qrSheetRef = useRef<BottomSheet>(null);
-  const user = useAuth((state) => state.user);
   const refreshUser = useAuth((state) => state.refreshUser);
-  const profile = user?.profiles?.[0] ?? null;
+  const profile = useActiveProfile();
 
   const [card, setCard] = useState<EmergencyCard | null>(null);
   const [loading, setLoading] = useState(true);
@@ -51,6 +50,8 @@ export default function EmergencyCardScreen() {
 
   const handleSave = useCallback(
     async (data: {
+      dob: string | null;
+      gender: string | null;
       bloodType: string | null;
       allergies: string[];
       conditions: string[];
@@ -60,10 +61,14 @@ export default function EmergencyCardScreen() {
       if (!profile) return;
       setSaving(true);
       try {
-        if (data.bloodType !== profile.bloodType) {
+        const profileChanged =
+          data.bloodType !== profile.bloodType ||
+          data.dob !== profile.dob ||
+          data.gender !== profile.gender;
+        if (profileChanged) {
           await api(`/api/v1/profiles/${profile.id}`, {
             method: "PATCH",
-            body: JSON.stringify({ bloodType: data.bloodType }),
+            body: JSON.stringify({ bloodType: data.bloodType, dob: data.dob, gender: data.gender }),
           });
           await refreshUser();
         }
@@ -118,6 +123,7 @@ export default function EmergencyCardScreen() {
         <CardPreview3D
           fullName={profile.fullName}
           dob={profile.dob}
+          gender={profile.gender}
           bloodType={profile.bloodType}
           primaryContact={primaryContact}
           publicToken={card?.publicToken ?? null}
@@ -127,6 +133,8 @@ export default function EmergencyCardScreen() {
         />
 
         <EmergencyForm
+          dob={profile.dob}
+          gender={profile.gender}
           bloodType={profile.bloodType}
           allergies={card?.allergies ?? []}
           conditions={card?.conditions ?? []}

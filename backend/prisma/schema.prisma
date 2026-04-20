@@ -32,8 +32,62 @@ model HealthProfile {
   emergencyCard  EmergencyCard?
   medications    Medication[]
   appointments   Appointment[]
+  vaccinations   Vaccination[]
+  growthRecords  GrowthRecord[]
+  healthMetrics  HealthMetric[]
+  clinicVisits   ClinicVisit[]
 
   @@index([userId])
+}
+
+model HealthMetric {
+  id          String        @id @default(uuid())
+  profileId   String
+  metricType  String
+  valueNum    Float
+  valueNum2   Float?
+  unit        String
+  recordedAt  DateTime
+  notes       String?
+  createdAt   DateTime      @default(now())
+  profile     HealthProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@index([profileId, metricType, recordedAt])
+}
+
+model Vaccination {
+  id              String        @id @default(uuid())
+  profileId       String
+  vaccineCode     String
+  vaccineName     String
+  doseNumber      Int           @default(1)
+  ageGroup        String?
+  scheduledDate   DateTime
+  administeredAt  DateTime?
+  status          String        @default("pending")
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  profile         HealthProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+}
+
+model GrowthRecord {
+  id          String        @id @default(uuid())
+  profileId   String
+  measuredOn  DateTime
+  weightKg    Float?
+  heightCm    Float?
+  headCm      Float?
+  notes       String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  profile     HealthProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@index([measuredOn])
 }
 
 model Medication {
@@ -117,4 +171,38 @@ model EmergencyCard {
   profile         HealthProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@index([publicToken])
+}
+
+model ExamResult {
+  id           String    @id @default(uuid())
+  token        String    @unique @default(uuid())
+  doctorName   String?
+  clinicName   String?
+  examDate     DateTime  @default(now())
+  diagnosis    String?
+  metrics      Json      @default("[]")
+  labResults   Json      @default("[]")
+  prescription Json      @default("[]")
+  appointment  Json?
+  expiresAt    DateTime
+  createdAt    DateTime  @default(now())
+}
+
+model ClinicVisit {
+  id           String        @id @default(uuid())
+  profileId    String
+  visitDate    DateTime
+  doctorName   String?
+  clinicName   String?
+  diagnosis    String?
+  metrics      Json          @default("[]")
+  labResults   Json          @default("[]")
+  prescription Json          @default("[]")
+  notes        String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  profile      HealthProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@index([visitDate])
 }

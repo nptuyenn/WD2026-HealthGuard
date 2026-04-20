@@ -1,21 +1,33 @@
+import { useCallback, useEffect, useState } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Droplets, AlertTriangle, Phone } from "lucide-react-native";
 import { useRouter } from "expo-router";
+import { useFocusEffect } from "expo-router";
 import { colors, fonts, fontSizes, radius, shadows } from "@/theme";
-import {
-  mockProfile,
-  mockAllergies,
-  mockEmergencyContacts,
-} from "@/lib/mock-data";
+import { useActiveProfile } from "@/store/auth";
+import { getEmergencyCard, type EmergencyCard } from "@/lib/emergency-api";
 
 export default function EmergencyQuickCard() {
   const router = useRouter();
-  const primaryContact = mockEmergencyContacts.find((c) => c.isPrimary);
-  const allergyNames = mockAllergies
-    .slice(0, 2)
-    .map((a) => a.name)
-    .join(", ");
+  const profile = useActiveProfile();
+  const [card, setCard] = useState<EmergencyCard | null>(null);
+
+  const load = useCallback(async () => {
+    if (!profile) return;
+    try {
+      const c = await getEmergencyCard(profile.id);
+      setCard(c);
+    } catch {}
+  }, [profile?.id]);
+
+  useEffect(() => { load(); }, [load]);
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  const bloodType = profile?.bloodType ?? "—";
+  const allergyList = card?.allergies ?? [];
+  const allergyText = allergyList.slice(0, 2).join(", ") || "—";
+  const primaryContact = card?.contacts?.find((c) => c.isPrimary) ?? card?.contacts?.[0] ?? null;
 
   return (
     <Pressable
@@ -31,14 +43,14 @@ export default function EmergencyQuickCard() {
         <View style={styles.row}>
           <View style={styles.infoItem}>
             <Droplets size={16} color={colors.danger.DEFAULT} />
-            <Text style={styles.bloodTypeText}>
-              Nhóm máu: {mockProfile.bloodType}
-            </Text>
+            <Text style={styles.bloodTypeText}>Nhóm máu: {bloodType}</Text>
           </View>
-          <View style={styles.infoItem}>
-            <AlertTriangle size={16} color={colors.danger.DEFAULT} />
-            <Text style={styles.allergyText}>Dị ứng: {allergyNames}</Text>
-          </View>
+          {allergyList.length > 0 && (
+            <View style={styles.infoItem}>
+              <AlertTriangle size={16} color={colors.danger.DEFAULT} />
+              <Text style={styles.allergyText}>Dị ứng: {allergyText}</Text>
+            </View>
+          )}
         </View>
 
         {primaryContact && (

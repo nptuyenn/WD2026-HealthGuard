@@ -61,6 +61,10 @@ export default function AppointmentCalendar({ appointments, onAddPress, onDelete
     return d.getFullYear() === year && d.getMonth() === month;
   });
 
+  const aptsSelectedDay = aptsThisMonth.filter(
+    (a) => new Date(a.scheduledAt).getDate() === selectedDay
+  );
+
   const dotForDay = (day: number): Appointment["status"] | null => {
     const apt = aptsThisMonth.find((a) => {
       const d = new Date(a.scheduledAt);
@@ -138,11 +142,15 @@ export default function AppointmentCalendar({ appointments, onAddPress, onDelete
         </Pressable>
       </View>
 
-      {appointments.length === 0 ? (
-        <Text style={s.empty}>Chưa có lịch tái khám nào.</Text>
+      {aptsSelectedDay.length === 0 ? (
+        <Text style={s.empty}>
+          {appointments.length === 0
+            ? "Chưa có lịch tái khám nào."
+            : "Không có lịch tái khám vào ngày này."}
+        </Text>
       ) : (
         <View style={s.aptList}>
-          {appointments.map((apt, idx) => (
+          {aptsSelectedDay.map((apt, idx) => (
             <AppointmentCard key={apt.id} apt={apt} index={idx} onDelete={onDelete} />
           ))}
         </View>

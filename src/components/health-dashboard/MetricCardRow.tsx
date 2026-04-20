@@ -1,71 +1,94 @@
-import { FlatList, StyleSheet, useWindowDimensions } from "react-native";
-import { Heart, Droplets, Scale, HeartPulse } from "lucide-react-native";
-import { colors } from "@/theme";
+import { FlatList, StyleSheet, Text, View } from "react-native";
+import { Heart, Droplets, Scale, HeartPulse, Activity, Thermometer } from "lucide-react-native";
+import { colors, fonts } from "@/theme";
 import MetricCard, { type MetricCardData } from "./MetricCard";
-import { mockHealthMetrics } from "@/lib/mock-data";
+import {
+  METRIC_META,
+  ALERT_STATUS,
+  formatMetricValue,
+  type MetricSummary,
+  type MetricType,
+} from "@/lib/health-metrics-api";
 
 const CARD_WIDTH = 148;
 
-const CARDS: MetricCardData[] = [
-  {
-    id: "bp",
-    title: "Huyết áp",
-    icon: Heart,
-    value: "120/80",
-    unit: "mmHg",
-    change: "-2",
-    changeDir: "down",
-    sparklineData: mockHealthMetrics.bloodPressure.map((d) => d.systolic),
-    status: "normal",
-    statusLabel: "Bình thường",
-  },
-  {
-    id: "sugar",
-    title: "Đường huyết",
-    icon: Droplets,
-    value: "5.6",
-    unit: "mmol/L",
-    change: "+0.3",
-    changeDir: "up",
-    sparklineData: mockHealthMetrics.bloodSugar.map((d) => d.value),
-    status: "warning",
-    statusLabel: "Cao nhẹ",
-  },
-  {
-    id: "bmi",
-    title: "BMI",
-    icon: Scale,
-    value: "22.5",
-    unit: "kg/m²",
-    change: "0",
-    changeDir: "neutral",
-    sparklineData: mockHealthMetrics.weight.map((d) => d.value),
-    status: "normal",
-    statusLabel: "Bình thường",
-  },
-  {
-    id: "hr",
-    title: "Nhịp tim",
-    icon: HeartPulse,
-    value: "72",
-    unit: "bpm",
-    change: "-3",
-    changeDir: "down",
-    sparklineData: mockHealthMetrics.heartRate.map((d) => d.value),
-    status: "normal",
-    statusLabel: "Bình thường",
-  },
+const ICONS: Record<MetricType, MetricCardData["icon"]> = {
+  blood_pressure: Heart,
+  glucose: Droplets,
+  heart_rate: HeartPulse,
+  weight: Scale,
+  spo2: Activity,
+  temperature: Thermometer,
+  bmi: Scale,
+};
+
+const DISPLAY_ORDER: MetricType[] = [
+  "blood_pressure",
+  "glucose",
+  "heart_rate",
+  "weight",
+  "spo2",
+  "temperature",
 ];
 
-interface Props {
-  onCardPress?: (id: string) => void;
+function buildCards(summary: MetricSummary): MetricCardData[] {
+  return DISPLAY_ORDER.filter((type) => summary[type]?.latest != null).map((type) => {
+    const entry = summary[type]!;
+    const latest = entry.latest!;
+    const meta = METRIC_META[type];
+    const status = ALERT_STATUS[entry.alert];
+
+    let change = "—";
+    let changeDir: MetricCardData["changeDir"] = "neutral";
+    if (entry.series.length >= 2) {
+      const prev = entry.series[entry.series.length - 2].valueNum;
+      const curr = latest.valueNum;
+      const diff = curr - prev;
+      if (Math.abs(diff) < 0.1) {
+        changeDir = "neutral";
+        change = "0";
+      } else {
+        changeDir = diff > 0 ? "up" : "down";
+        change = `${diff > 0 ? "+" : ""}${diff.toFixed(Math.abs(diff) < 10 ? 1 : 0)}`;
+      }
+    }
+
+    return {
+      id: type,
+      title: meta.label,
+      icon: ICONS[type],
+      value: formatMetricValue(type, latest.valueNum, latest.valueNum2),
+      unit: latest.unit,
+      change,
+      changeDir,
+      sparklineData: entry.series.map((p) => p.valueNum),
+      status: status.kind,
+      statusLabel: status.label,
+    };
+  });
 }
 
-export default function MetricCardRow({ onCardPress }: Props) {
+type Props = {
+  summary: MetricSummary | null;
+};
+
+export default function MetricCardRow({ summary }: Props) {
+  const cards = summary ? buildCards(summary) : [];
+
+  if (cards.length === 0) {
+    return (
+      <View style={s.empty}>
+        <Text style={s.emptyText}>
+          Chưa có chỉ số nào. Nhấn "Ghi chỉ số mới" bên dưới để bắt đầu theo dõi.
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <FlatList
       horizontal
-      data={CARDS}
+      data={cards}
       keyExtractor={(c) => c.id}
       showsHorizontalScrollIndicator={false}
       snapToInterval={CARD_WIDTH + 12}
@@ -80,4 +103,11 @@ export default function MetricCardRow({ onCardPress }: Props) {
 
 const s = StyleSheet.create({
   list: { paddingHorizontal: 16, gap: 12, paddingVertical: 4 },
+  empty: { paddingHorizontal: 32, paddingVertical: 24, alignItems: "center" },
+  emptyText: {
+    textAlign: "center",
+    color: colors.text.muted,
+    fontFamily: fonts.regular,
+    fontSize: 13,
+  },
 });

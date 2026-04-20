@@ -1,13 +1,15 @@
 import { View, Text, StyleSheet } from "react-native";
 import { colors, fonts, radius } from "@/theme";
-import VaccinationItem, { type VaccinationRecord } from "./VaccinationItem";
+import VaccinationItem from "./VaccinationItem";
+import type { Vaccination } from "@/lib/child-growth-api";
 
 interface Props {
   ageGroup: string;
-  items: VaccinationRecord[];
+  items: Vaccination[];
+  onMarkCompleted: (v: Vaccination) => void;
 }
 
-export default function VaccinationGroup({ ageGroup, items }: Props) {
+export default function VaccinationGroup({ ageGroup, items, onMarkCompleted }: Props) {
   const completed = items.filter((i) => i.status === "completed").length;
   const hasOverdue = items.some((i) => i.status === "overdue");
   const hasPendingUpcoming = items.some((i) => i.status === "pending");
@@ -21,26 +23,27 @@ export default function VaccinationGroup({ ageGroup, items }: Props) {
     ? colors.warning.DEFAULT
     : colors.text.muted;
 
-  const allDone = allCompleted;
-
   return (
     <View style={s.container}>
-      {/* Group header */}
       <View style={s.header}>
         <View style={[s.node, { backgroundColor: nodeColor }]} />
         <Text style={s.groupTitle}>{ageGroup.toUpperCase()}</Text>
         <View style={s.flex1} />
-        <View style={[s.badge, allDone && s.badgeDone]}>
-          <Text style={[s.badgeText, allDone && s.badgeTextDone]}>
-            {completed}/{items.length}{allDone ? " ✓" : ""}
+        <View style={[s.badge, allCompleted && s.badgeDone]}>
+          <Text style={[s.badgeText, allCompleted && s.badgeTextDone]}>
+            {completed}/{items.length}{allCompleted ? " ✓" : ""}
           </Text>
         </View>
       </View>
 
-      {/* Items */}
       <View style={s.items}>
         {items.map((item, idx) => (
-          <VaccinationItem key={item.id} item={item} index={idx} />
+          <VaccinationItem
+            key={item.id}
+            item={item}
+            index={idx}
+            onMarkCompleted={onMarkCompleted}
+          />
         ))}
       </View>
     </View>
