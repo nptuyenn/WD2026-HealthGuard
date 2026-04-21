@@ -198,7 +198,3 @@ Main backend entry point: [backend/src/index.ts](backend/src/index.ts)
   - Confirm `DATABASE_URL` is valid and database is available
 - Unauthorized responses:
   - Verify `JWT_SECRET` is set and consistent across restarts
-
-## License
-
-This project is currently unlicensed. Add a license file before public distribution.
