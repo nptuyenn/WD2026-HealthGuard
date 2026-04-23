@@ -1,0 +1,6 @@
+**Vấn đề 1 – Thiếu thông tin y tế trong tình huống khẩn cấp:** Trong nhiều tình huống khẩn cấp như tai nạn giao thông, đột quỵ hoặc ngất xỉu tại nơi công cộng, người gặp nạn thường không thể cung cấp thông tin y tế quan trọng cho nhân viên cấp cứu. Những thông tin như bệnh nền, dị ứng thuốc, thuốc đang sử dụng, nhóm máu hoặc thông tin người thân cần liên hệ thường chỉ được lưu trữ trong hồ sơ bệnh án tại bệnh viện hoặc do chính bệnh nhân ghi nhớ. Điều này có thể làm chậm quá trình cấp cứu hoặc dẫn đến những rủi ro trong điều trị, đặc biệt trong các trường hợp cần xử lý nhanh để đảm bảo "thời gian vàng" cứu sống bệnh nhân.
+
+ 
+
+**Vấn đề 2 – Quản lý sức khỏe gia đình còn thụ động và phân tán:** Trong đời sống hằng ngày, nhiều người dân cần theo dõi và quản lý các thông tin liên quan đến sức khỏe cá nhân và gia đình. Đối với người bệnh mãn tính hoặc người cao tuổi, việc tuân thủ điều trị đóng vai trò quan trọng, nhưng trong thực tế nhiều người thường quên uống thuốc đúng giờ hoặc quên lịch tái khám định kỳ. Đối với trẻ nhỏ, nhiều phụ huynh thường quên lịch tiêm chủng hoặc không theo dõi thường xuyên các chỉ số phát triển như chiều cao và cân nặng. Ngoài ra, tủ thuốc gia đình thường không được quản lý hiệu quả, dẫn đến các tình trạng như thuốc hết hạn sử dụng hoặc thiếu các loại thuốc cần thiết.
+

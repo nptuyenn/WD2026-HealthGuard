@@ -1,4 +1,4 @@
-import { forwardRef, useCallback } from "react";
+import { forwardRef, useCallback, useRef } from "react";
 import { View, Text, Pressable, StyleSheet, Alert } from "react-native";
 import BottomSheet, {
   BottomSheetView,
@@ -6,7 +6,11 @@ import BottomSheet, {
   type BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
 import QRCode from "react-native-qrcode-svg";
-import { Copy, Download } from "lucide-react-native";
+import * as Clipboard from "expo-clipboard";
+import * as FileSystem from "expo-file-system/legacy";
+import * as MediaLibrary from "expo-media-library";
+import * as Sharing from "expo-sharing";
+import { Copy, Download, Share2 } from "lucide-react-native";
 import { colors, fonts, fontSizes, radius } from "@/theme";
 import { API_URL } from "@/lib/api";
 
@@ -14,6 +18,7 @@ type Props = { publicToken: string | null };
 
 const QRShareSheet = forwardRef<BottomSheet, Props>(({ publicToken }, ref) => {
   const qrUrl = publicToken ? `${API_URL}/emergency/${publicToken}` : "";
+  const qrRef = useRef<any>(null);
 
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
@@ -22,12 +27,54 @@ const QRShareSheet = forwardRef<BottomSheet, Props>(({ publicToken }, ref) => {
     []
   );
 
-  const handleCopyLink = () => {
-    Alert.alert("Đã sao chép", qrUrl);
+  const handleCopyLink = async () => {
+    await Clipboard.setStringAsync(qrUrl);
+    Alert.alert("Đã sao chép", "Link thẻ y tế đã được sao chép vào clipboard.");
   };
 
-  const handleDownload = () => {
-    Alert.alert("Tính năng sắp ra mắt", "Chức năng tải ảnh QR đang được phát triển.");
+  const getQrPngUri = () =>
+    new Promise<string>((resolve, reject) => {
+      if (!qrRef.current) return reject(new Error("QR chưa sẵn sàng"));
+      qrRef.current.toDataURL(async (base64: string) => {
+        try {
+          const uri = `${FileSystem.cacheDirectory}healthguard-qr-${Date.now()}.png`;
+          await FileSystem.writeAsStringAsync(uri, base64, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+          resolve(uri);
+        } catch (e) {
+          reject(e);
+        }
+      });
+    });
+
+  const handleDownload = async () => {
+    try {
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Cần quyền truy cập", "Vui lòng cấp quyền lưu ảnh vào thư viện.");
+        return;
+      }
+      const uri = await getQrPngUri();
+      await MediaLibrary.saveToLibraryAsync(uri);
+      Alert.alert("Đã lưu", "QR đã được lưu vào thư viện ảnh.");
+    } catch (err: any) {
+      Alert.alert("Lỗi", err?.message ?? "Không lưu được QR.");
+    }
+  };
+
+  const handleShare = async () => {
+    try {
+      const uri = await getQrPngUri();
+      const canShare = await Sharing.isAvailableAsync();
+      if (!canShare) {
+        Alert.alert("Không hỗ trợ", "Thiết bị không hỗ trợ chia sẻ.");
+        return;
+      }
+      await Sharing.shareAsync(uri, { mimeType: "image/png", dialogTitle: "Chia sẻ QR thẻ y tế" });
+    } catch (err: any) {
+      Alert.alert("Lỗi", err?.message ?? "Không chia sẻ được.");
+    }
   };
 
   return (
@@ -46,7 +93,7 @@ const QRShareSheet = forwardRef<BottomSheet, Props>(({ publicToken }, ref) => {
         {qrUrl ? (
           <>
             <View style={styles.qrWrapper}>
-              <QRCode value={qrUrl} size={200} />
+              <QRCode value={qrUrl} size={200} getRef={(r) => (qrRef.current = r)} />
             </View>
             <Text style={styles.urlText} numberOfLines={2}>
               {qrUrl}
@@ -55,11 +102,15 @@ const QRShareSheet = forwardRef<BottomSheet, Props>(({ publicToken }, ref) => {
             <View style={styles.btnRow}>
               <Pressable style={styles.actionBtn} onPress={handleCopyLink}>
                 <Copy size={18} color={colors.brand.DEFAULT} strokeWidth={1.8} />
-                <Text style={styles.actionBtnText}>Sao chép link</Text>
+                <Text style={styles.actionBtnText}>Sao chép</Text>
               </Pressable>
               <Pressable style={styles.actionBtn} onPress={handleDownload}>
                 <Download size={18} color={colors.brand.DEFAULT} strokeWidth={1.8} />
                 <Text style={styles.actionBtnText}>Tải QR</Text>
+              </Pressable>
+              <Pressable style={styles.actionBtn} onPress={handleShare}>
+                <Share2 size={18} color={colors.brand.DEFAULT} strokeWidth={1.8} />
+                <Text style={styles.actionBtnText}>Chia sẻ</Text>
               </Pressable>
             </View>
           </>
