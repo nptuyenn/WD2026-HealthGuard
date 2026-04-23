@@ -38,7 +38,11 @@ export default function DatePickerField({
   const [show, setShow] = useState(false);
   // iOS datetime: pick date first, then time
   const [iosStep, setIosStep] = useState<"date" | "time">("date");
-  const [tempDate, setTempDate] = useState<Date>(value ?? new Date());
+  const getValidDate = (d: Date | null) => {
+    return d && !isNaN(d.getTime()) ? d : new Date();
+  };
+
+  const [tempDate, setTempDate] = useState<Date>(getValidDate(value));
 
   const displayValue = value
     ? mode === "date" ? formatDate(value)
@@ -51,7 +55,7 @@ export default function DatePickerField({
     : <Calendar size={16} color={colors.text.muted} strokeWidth={1.8} />;
 
   const handleOpen = () => {
-    setTempDate(value ?? new Date());
+    setTempDate(getValidDate(value));
     setIosStep("date");
     setShow(true);
   };
@@ -103,31 +107,33 @@ export default function DatePickerField({
       {/* iOS: modal with done button */}
       {Platform.OS === "ios" && (
         <Modal visible={show} transparent animationType="slide">
-          <Pressable style={s.overlay} onPress={() => setShow(false)} />
-          <View style={s.sheet}>
-            <View style={s.sheetHeader}>
-              <Pressable onPress={() => setShow(false)}>
-                <Text style={s.cancelText}>Hủy</Text>
-              </Pressable>
-              <Text style={s.sheetTitle}>
-                {mode === "datetime" && iosStep === "time" ? "Chọn giờ" : "Chọn ngày"}
-              </Text>
-              <Pressable onPress={handleIosDone}>
-                <Text style={s.doneText}>
-                  {mode === "datetime" && iosStep === "date" ? "Tiếp" : "Xong"}
+          <View style={s.modalContainer}>
+            <Pressable style={s.overlay} onPress={() => setShow(false)} />
+            <View style={s.sheet}>
+              <View style={s.sheetHeader}>
+                <Pressable onPress={() => setShow(false)}>
+                  <Text style={s.cancelText}>Hủy</Text>
+                </Pressable>
+                <Text style={s.sheetTitle}>
+                  {mode === "datetime" && iosStep === "time" ? "Chọn giờ" : "Chọn ngày"}
                 </Text>
-              </Pressable>
+                <Pressable onPress={handleIosDone}>
+                  <Text style={s.doneText}>
+                    {mode === "datetime" && iosStep === "date" ? "Tiếp" : "Xong"}
+                  </Text>
+                </Pressable>
+              </View>
+              <DateTimePicker
+                value={getValidDate(tempDate)}
+                mode={iosPickerMode}
+                display="spinner"
+                onChange={handleIosChange}
+                minimumDate={minimumDate}
+                maximumDate={maximumDate}
+                locale="vi-VN"
+                style={{ width: "100%", height: 200 }}
+              />
             </View>
-            <DateTimePicker
-              value={tempDate}
-              mode={iosPickerMode}
-              display="spinner"
-              onChange={handleIosChange}
-              minimumDate={minimumDate}
-              maximumDate={maximumDate}
-              locale="vi-VN"
-              style={{ width: "100%" }}
-            />
           </View>
         </Modal>
       )}
@@ -150,7 +156,8 @@ const s = StyleSheet.create({
   value: { fontFamily: fonts.regular, fontSize: fontSizes.base, color: colors.text.DEFAULT },
   placeholder: { color: colors.text.muted },
 
-  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.3)" },
+  modalContainer: { flex: 1, justifyContent: "flex-end" },
+  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.3)" },
   sheet: {
     backgroundColor: "#fff",
     borderTopLeftRadius: 20,
