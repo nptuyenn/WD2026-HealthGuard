@@ -50,7 +50,6 @@ export default function MedManagerScreen() {
 
   const loadAll = useCallback(async () => {
     if (!profile) return;
-    setLoading(true);
     try {
       const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, "0")}-${String(selectedDate.getDate()).padStart(2, "0")}`;
       const [t, m, a] = await Promise.all([
