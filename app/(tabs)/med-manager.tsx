@@ -41,6 +41,7 @@ export default function MedManagerScreen() {
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [medications, setMedications] = useState<Medication[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [loading, setLoading] = useState(true);
 
   const scheduleFormRef = useRef<BottomSheet>(null);
@@ -51,8 +52,9 @@ export default function MedManagerScreen() {
     if (!profile) return;
     setLoading(true);
     try {
+      const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, "0")}-${String(selectedDate.getDate()).padStart(2, "0")}`;
       const [t, m, a] = await Promise.all([
-        getToday(profile.id),
+        getToday(profile.id, dateStr),
         listMedications(profile.id),
         listAppointments(profile.id),
       ]);
@@ -64,7 +66,7 @@ export default function MedManagerScreen() {
     } finally {
       setLoading(false);
     }
-  }, [profile?.id]);
+  }, [profile?.id, selectedDate]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
   useFocusEffect(useCallback(() => { loadAll(); }, [loadAll]));
@@ -75,7 +77,11 @@ export default function MedManagerScreen() {
       if (!profile) return;
       if (data.type === "existing") {
         const med = medications.find((m) => m.id === data.medicationId);
-        await addMedicationSchedule(profile.id, data.medicationId, { timesOfDay: data.timesOfDay });
+        await addMedicationSchedule(profile.id, data.medicationId, {
+          timesOfDay: data.timesOfDay,
+          startsOn: data.startsOn,
+          endsOn: data.endsOn,
+        });
         if (data.reminderOn && med) {
           await scheduleMedicationReminders(med.id, med.name, med.dosage, med.unit, data.timesOfDay);
         }
@@ -187,6 +193,8 @@ export default function MedManagerScreen() {
               events={events}
               onMarkTaken={handleMarkTaken}
               onAddPress={() => scheduleFormRef.current?.expand()}
+              selectedDate={selectedDate}
+              onChangeDate={setSelectedDate}
             />
           </Animated.View>
         )}

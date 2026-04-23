@@ -17,10 +17,18 @@ import BottomSheet, {
 } from "@gorhom/bottom-sheet";
 import { Check } from "lucide-react-native";
 import { colors, fonts, fontSizes, radius } from "@/theme";
+import DatePickerField from "@/components/shared/DatePickerField";
 import type { Medication, MedicationInput } from "@/lib/medications-api";
 
 export type MedFormSubmit =
-  | { type: "existing"; medicationId: string; timesOfDay: string[]; reminderOn: boolean }
+  | {
+      type: "existing";
+      medicationId: string;
+      timesOfDay: string[];
+      startsOn: string;
+      endsOn: string | null;
+      reminderOn: boolean;
+    }
   | { type: "new"; input: MedicationInput; reminderOn: boolean };
 
 interface Props {
@@ -34,6 +42,8 @@ const MedForm = forwardRef<BottomSheet, Props>(({ onSave, medications = [] }, re
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
   const [times, setTimes] = useState("07:30");
+  const [startsOn, setStartsOn] = useState<Date>(new Date());
+  const [endsOn, setEndsOn] = useState<Date | null>(null);
   const [reminder, setReminder] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -45,7 +55,8 @@ const MedForm = forwardRef<BottomSheet, Props>(({ onSave, medications = [] }, re
   );
 
   const reset = () => {
-    setSelectedId(null); setNewName(""); setTimes("07:30"); setReminder(true);
+    setSelectedId(null); setNewName(""); setTimes("07:30");
+    setStartsOn(new Date()); setEndsOn(null); setReminder(true);
   };
 
   const parseTimes = (raw: string): string[] | null => {
@@ -68,14 +79,31 @@ const MedForm = forwardRef<BottomSheet, Props>(({ onSave, medications = [] }, re
       return;
     }
 
+    if (endsOn && endsOn < startsOn) {
+      Alert.alert("Ngày kết thúc không hợp lệ", "Ngày kết thúc phải sau ngày bắt đầu.");
+      return;
+    }
+
     setSubmitting(true);
     try {
+      const startsIso = startsOn.toISOString();
+      const endsIso = endsOn ? endsOn.toISOString() : null;
       if (selectedId) {
-        await onSave({ type: "existing", medicationId: selectedId, timesOfDay: parsed, reminderOn: reminder });
+        await onSave({
+          type: "existing",
+          medicationId: selectedId,
+          timesOfDay: parsed,
+          startsOn: startsIso,
+          endsOn: endsIso,
+          reminderOn: reminder,
+        });
       } else {
         await onSave({
           type: "new",
-          input: { name: newName.trim(), schedules: [{ timesOfDay: parsed }] },
+          input: {
+            name: newName.trim(),
+            schedules: [{ timesOfDay: parsed, startsOn: startsIso, endsOn: endsIso }],
+          },
           reminderOn: reminder,
         });
       }
@@ -148,6 +176,27 @@ const MedForm = forwardRef<BottomSheet, Props>(({ onSave, medications = [] }, re
             value={selectedId ? (medications.find(m => m.id === selectedId)?.name ?? "") : newName}
             onChangeText={(v) => { setSelectedId(null); setNewName(v); }}
             editable={selectedId === null && !submitting}
+          />
+        </View>
+
+        {/* Date range */}
+        <View style={s.section}>
+          <DatePickerField
+            label="Ngày bắt đầu"
+            value={startsOn}
+            onChange={setStartsOn}
+            mode="date"
+          />
+        </View>
+
+        <View style={s.section}>
+          <DatePickerField
+            label="Ngày kết thúc (tùy chọn)"
+            value={endsOn}
+            onChange={setEndsOn}
+            mode="date"
+            minimumDate={startsOn}
+            placeholder="Không giới hạn"
           />
         </View>
 

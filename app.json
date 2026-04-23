@@ -38,7 +38,16 @@
       "expo-router",
       "expo-font",
       "expo-notifications",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "HealthGuard cần truy cập thư viện ảnh để lưu trữ thông tin.",
+          "saveToLibraryPermission": "HealthGuard cần quyền lưu tệp vào thư viện của bạn.",
+          "isAccessMediaLocationEnabled": true,
+          "audioPermission": "HealthGuard cần quyền truy cập âm thanh để ghi và phát âm thanh."
+        }
+      ]
     ]
   }
 }

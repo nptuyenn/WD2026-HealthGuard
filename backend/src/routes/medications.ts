@@ -72,9 +72,12 @@ medicationsRouter.get("/today", async (req: AuthedRequest, res, next) => {
     const profileId = String(req.params.profileId);
     await assertOwnedProfile(req.userId!, profileId);
 
-    const now = new Date();
-    const todayStr = now.toISOString().slice(0, 10);
-    const dayOfWeek = now.getUTCDay();
+    const dateParam = typeof req.query.date === "string" ? req.query.date : null;
+    const target = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)
+      ? new Date(`${dateParam}T00:00:00.000Z`)
+      : new Date();
+    const todayStr = target.toISOString().slice(0, 10);
+    const dayOfWeek = target.getUTCDay();
 
     const meds = await prisma.medication.findMany({
       where: {

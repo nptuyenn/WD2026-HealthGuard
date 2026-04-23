@@ -37,6 +37,8 @@ export type MedicationInput = {
   schedules?: {
     timesOfDay: string[];
     daysOfWeek?: number[];
+    startsOn?: string;
+    endsOn?: string | null;
   }[];
 };
 
@@ -60,8 +62,9 @@ export async function listMedications(profileId: string) {
   return api<Medication[]>(`/api/v1/profiles/${profileId}/medications`);
 }
 
-export async function getToday(profileId: string) {
-  return api<TimelineEvent[]>(`/api/v1/profiles/${profileId}/medications/today`);
+export async function getToday(profileId: string, date?: string) {
+  const qs = date ? `?date=${encodeURIComponent(date)}` : "";
+  return api<TimelineEvent[]>(`/api/v1/profiles/${profileId}/medications/today${qs}`);
 }
 
 export async function createMedication(profileId: string, input: MedicationInput) {
@@ -85,7 +88,7 @@ export async function updateMedication(profileId: string, id: string, input: Par
 export async function addMedicationSchedule(
   profileId: string,
   medicationId: string,
-  schedule: { timesOfDay: string[]; daysOfWeek?: number[] }
+  schedule: { timesOfDay: string[]; daysOfWeek?: number[]; startsOn?: string; endsOn?: string | null }
 ) {
   return api<MedicationSchedule>(
     `/api/v1/profiles/${profileId}/medications/${medicationId}/schedules`,
