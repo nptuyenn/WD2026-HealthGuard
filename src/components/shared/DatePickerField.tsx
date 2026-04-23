@@ -1,6 +1,14 @@
 import { useState } from "react";
-import { View, Text, Pressable, StyleSheet, Modal, Platform } from "react-native";
-import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
+import {
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  Platform,
+} from "react-native";
+import DateTimePicker, {
+  type DateTimePickerEvent,
+} from "@react-native-community/datetimepicker";
 import { Calendar, Clock } from "lucide-react-native";
 import { colors, fonts, fontSizes, radius } from "@/theme";
 
@@ -8,22 +16,21 @@ interface Props {
   label: string;
   value: Date | null;
   onChange: (date: Date) => void;
-  mode?: "date" | "time" | "datetime";
+  mode?: "date" | "time";
   minimumDate?: Date;
   maximumDate?: Date;
   placeholder?: string;
 }
 
 function formatDate(d: Date) {
-  return d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
+  return d.toLocaleDateString("vi-VN");
 }
 
 function formatTime(d: Date) {
-  return d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", hour12: false });
-}
-
-function formatDatetime(d: Date) {
-  return `${formatDate(d)}  ${formatTime(d)}`;
+  return d.toLocaleTimeString("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 export default function DatePickerField({
@@ -36,113 +43,106 @@ export default function DatePickerField({
   placeholder,
 }: Props) {
   const [show, setShow] = useState(false);
-  // iOS datetime: pick date first, then time
-  const [iosStep, setIosStep] = useState<"date" | "time">("date");
-  const getValidDate = (d: Date | null) => {
-    return d && !isNaN(d.getTime()) ? d : new Date();
-  };
-
-  const [tempDate, setTempDate] = useState<Date>(getValidDate(value));
+  const [tempDate, setTempDate] = useState(value ?? new Date());
 
   const displayValue = value
-    ? mode === "date" ? formatDate(value)
-    : mode === "time" ? formatTime(value)
-    : formatDatetime(value)
+    ? mode === "time"
+      ? formatTime(value)
+      : formatDate(value)
     : null;
 
-  const icon = mode === "time"
-    ? <Clock size={16} color={colors.text.muted} strokeWidth={1.8} />
-    : <Calendar size={16} color={colors.text.muted} strokeWidth={1.8} />;
+  const icon =
+    mode === "time" ? (
+      <Clock size={16} color={colors.text.muted} />
+    ) : (
+      <Calendar size={16} color={colors.text.muted} />
+    );
 
-  const handleOpen = () => {
-    setTempDate(getValidDate(value));
-    setIosStep("date");
+  const open = () => {
+    setTempDate(value ?? new Date());
     setShow(true);
   };
 
-  // Android: picker fires onChange immediately and closes itself
-  const handleAndroid = (_e: DateTimePickerEvent, selected?: Date) => {
+  // ANDROID
+  const onAndroidChange = (_: DateTimePickerEvent, date?: Date) => {
     setShow(false);
-    if (selected) onChange(selected);
+    if (date) onChange(date);
   };
 
-  // iOS: show in modal with Done button
-  const handleIosChange = (_e: DateTimePickerEvent, selected?: Date) => {
-    if (selected) setTempDate(selected);
+  // IOS
+  const onIosChange = (_: DateTimePickerEvent, date?: Date) => {
+    if (date) setTempDate(date);
   };
-
-  const handleIosDone = () => {
-    if (mode === "datetime" && iosStep === "date") {
-      setIosStep("time");
-      return;
-    }
-    setShow(false);
-    onChange(tempDate);
-  };
-
-  const iosPickerMode = mode === "datetime" ? iosStep : mode;
 
   return (
     <View>
       <Text style={s.label}>{label}</Text>
-      <Pressable style={s.field} onPress={handleOpen}>
+
+      <Pressable style={s.field} onPress={open}>
         <Text style={[s.value, !displayValue && s.placeholder]}>
-          {displayValue ?? (placeholder ?? "Chọn ngày")}
+          {displayValue ?? placeholder ?? "Chọn"}
         </Text>
         {icon}
       </Pressable>
 
-      {/* Android: render directly, auto-dismisses */}
+      {/* ANDROID */}
       {Platform.OS === "android" && show && (
         <DateTimePicker
           value={tempDate}
-          mode={mode === "datetime" ? "date" : mode}
+          mode={mode}
           display="default"
-          onChange={handleAndroid}
+          onChange={onAndroidChange}
           minimumDate={minimumDate}
           maximumDate={maximumDate}
         />
       )}
 
-      {/* iOS: modal with done button */}
-      {Platform.OS === "ios" && (
-        <Modal visible={show} transparent animationType="slide">
-          <View style={s.modalContainer}>
-            <Pressable style={s.overlay} onPress={() => setShow(false)} />
-            <View style={s.sheet}>
-              <View style={s.sheetHeader}>
-                <Pressable onPress={() => setShow(false)}>
-                  <Text style={s.cancelText}>Hủy</Text>
-                </Pressable>
-                <Text style={s.sheetTitle}>
-                  {mode === "datetime" && iosStep === "time" ? "Chọn giờ" : "Chọn ngày"}
-                </Text>
-                <Pressable onPress={handleIosDone}>
-                  <Text style={s.doneText}>
-                    {mode === "datetime" && iosStep === "date" ? "Tiếp" : "Xong"}
-                  </Text>
-                </Pressable>
-              </View>
-              <DateTimePicker
-                value={getValidDate(tempDate)}
-                mode={iosPickerMode}
-                display="spinner"
-                onChange={handleIosChange}
-                minimumDate={minimumDate}
-                maximumDate={maximumDate}
-                locale="vi-VN"
-                style={{ width: "100%", height: 200 }}
-              />
-            </View>
+      {/* IOS (INLINE - KHÔNG MODAL) */}
+      {Platform.OS === "ios" && show && (
+        <View style={s.iosContainer}>
+          
+          <View style={s.header}>
+            <Pressable onPress={() => setShow(false)}>
+              <Text style={s.cancel}>Hủy</Text>
+            </Pressable>
+
+            <Text style={s.title}>
+              {mode === "time" ? "Chọn giờ" : "Chọn ngày"}
+            </Text>
+
+            <Pressable
+              onPress={() => {
+                setShow(false);
+                onChange(tempDate);
+              }}
+            >
+              <Text style={s.done}>Xong</Text>
+            </Pressable>
           </View>
-        </Modal>
+
+          <DateTimePicker
+            value={tempDate}
+            mode={mode}
+            display="spinner"
+            onChange={onIosChange}
+            minimumDate={minimumDate}
+            maximumDate={maximumDate}
+            style={{ height: 200 }} // 🔥 quan trọng
+          />
+        </View>
       )}
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  label: { fontSize: 12, fontFamily: fonts.medium, color: colors.text.secondary, marginBottom: 4 },
+  label: {
+    fontSize: 12,
+    fontFamily: fonts.medium,
+    color: colors.text.secondary,
+    marginBottom: 4,
+  },
+
   field: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -153,26 +153,42 @@ const s = StyleSheet.create({
     padding: 12,
     backgroundColor: "#fff",
   },
-  value: { fontFamily: fonts.regular, fontSize: fontSizes.base, color: colors.text.DEFAULT },
-  placeholder: { color: colors.text.muted },
 
-  modalContainer: { flex: 1, justifyContent: "flex-end" },
-  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.3)" },
-  sheet: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: 32,
+  value: {
+    fontFamily: fonts.regular,
+    fontSize: fontSizes.base,
+    color: colors.text.DEFAULT,
   },
-  sheetHeader: {
+
+  placeholder: {
+    color: colors.text.muted,
+  },
+
+  iosContainer: {
+    backgroundColor: "#fff",
+    marginTop: 10,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+
+  header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    padding: 16,
+    padding: 12,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border.DEFAULT,
+    borderBottomColor: "#eee",
   },
-  sheetTitle: { fontFamily: fonts.semibold, fontSize: fontSizes.base, color: colors.text.DEFAULT },
-  cancelText: { fontFamily: fonts.regular, fontSize: fontSizes.base, color: colors.text.secondary },
-  doneText: { fontFamily: fonts.semibold, fontSize: fontSizes.base, color: colors.brand.DEFAULT },
+
+  title: {
+    fontFamily: fonts.semibold,
+    fontSize: fontSizes.base,
+  },
+
+  cancel: {
+    color: colors.text.secondary,
+  },
+
+  done: {
+    color: colors.brand.DEFAULT,
+  },
 });
