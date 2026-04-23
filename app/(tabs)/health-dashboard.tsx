@@ -12,6 +12,7 @@ import { useFocusEffect } from "expo-router";
 import Animated, { FadeInUp } from "react-native-reanimated";
 import BottomSheet from "@gorhom/bottom-sheet";
 import { colors, fonts, fontSizes, spacing } from "@/theme";
+import DashboardHeader from "@/components/health-dashboard/DashboardHeader";
 import MetricCardRow from "@/components/health-dashboard/MetricCardRow";
 import MainChart from "@/components/health-dashboard/MainChart";
 import AIInsightCard from "@/components/health-dashboard/AIInsightCard";
@@ -105,7 +106,11 @@ export default function HealthDashboardScreen() {
           </View>
         ) : (
           <>
-            <Animated.View style={s.section} entering={FadeInUp.duration(300).delay(0)}>
+            <Animated.View entering={FadeInUp.duration(300).delay(0)}>
+              <DashboardHeader summary={summary} />
+            </Animated.View>
+
+            <Animated.View style={s.section} entering={FadeInUp.duration(300).delay(75)}>
               <MetricCardRow summary={summary} />
             </Animated.View>
 

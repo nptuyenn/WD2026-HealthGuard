@@ -28,15 +28,33 @@ interface Props {
   events: TimelineEvent[];
   onMarkTaken: (item: MedScheduleItem) => void;
   onAddPress: () => void;
+  selectedDate: Date;
+  onChangeDate: (d: Date) => void;
 }
 
-export default function MedTimeline({ events, onMarkTaken, onAddPress }: Props) {
+function sameDay(a: Date, b: Date) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+export default function MedTimeline({ events, onMarkTaken, onAddPress, selectedDate, onChangeDate }: Props) {
   const now = new Date();
-  const currentHHMM = `${String(now.getHours()).padStart(2, "0")}:${String(
-    now.getMinutes()
-  ).padStart(2, "0")}`;
-  const currentHour = now.getHours();
-  const todayLabel = `Hôm nay, ${now.toLocaleDateString("vi-VN")}`;
+  const isToday = sameDay(selectedDate, now);
+  const currentHHMM = isToday
+    ? `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`
+    : "23:59";
+  const currentHour = isToday ? now.getHours() : 24;
+  const prefix = isToday ? "Hôm nay, " : "";
+  const todayLabel = `${prefix}${selectedDate.toLocaleDateString("vi-VN")}`;
+
+  const shiftDay = (delta: number) => {
+    const d = new Date(selectedDate);
+    d.setDate(d.getDate() + delta);
+    onChangeDate(d);
+  };
 
   const items: MedScheduleItem[] = events.map((e) => ({
     id: e.eventKey,
@@ -53,17 +71,19 @@ export default function MedTimeline({ events, onMarkTaken, onAddPress }: Props) 
   return (
     <View>
       <View style={s.dateHeader}>
-        <Pressable accessibilityLabel="Hôm qua">
+        <Pressable accessibilityLabel="Ngày trước" onPress={() => shiftDay(-1)} hitSlop={8}>
           <ChevronLeft size={20} color={colors.text.secondary} strokeWidth={1.8} />
         </Pressable>
-        <Text style={s.dateText}>{todayLabel}</Text>
-        <Pressable accessibilityLabel="Ngày mai">
+        <Pressable onPress={() => onChangeDate(new Date())}>
+          <Text style={s.dateText}>{todayLabel}</Text>
+        </Pressable>
+        <Pressable accessibilityLabel="Ngày sau" onPress={() => shiftDay(1)} hitSlop={8}>
           <ChevronRight size={20} color={colors.text.secondary} strokeWidth={1.8} />
         </Pressable>
       </View>
 
       {items.length === 0 && (
-        <Text style={s.empty}>Chưa có lịch uống thuốc nào hôm nay.</Text>
+        <Text style={s.empty}>Không có lịch uống thuốc cho ngày này.</Text>
       )}
 
       <View style={s.timeline}>

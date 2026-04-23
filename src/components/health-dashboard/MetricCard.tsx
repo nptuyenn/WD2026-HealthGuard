@@ -7,7 +7,6 @@ import Animated, {
 } from "react-native-reanimated";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react-native";
 import { colors, fonts, fontSizes, radius, shadows } from "@/theme";
-import SparklineChart from "./SparklineChart";
 
 export interface MetricCardData {
   id: string;
@@ -23,63 +22,71 @@ export interface MetricCardData {
 }
 
 const STATUS_COLORS = {
-  normal:  { border: colors.success.DEFAULT, bg: colors.success.light, text: colors.success.DEFAULT, icon: colors.success.DEFAULT },
-  warning: { border: colors.warning.DEFAULT, bg: colors.warning.light, text: colors.warning.DEFAULT, icon: colors.warning.DEFAULT },
-  danger:  { border: colors.danger.DEFAULT,  bg: colors.danger.light,  text: colors.danger.DEFAULT,  icon: colors.danger.DEFAULT },
+  normal:  { accent: colors.success.DEFAULT, bg: colors.success.light, text: colors.success.DEFAULT },
+  warning: { accent: colors.warning.DEFAULT, bg: colors.warning.light, text: colors.warning.DEFAULT },
+  danger:  { accent: colors.danger.DEFAULT,  bg: colors.danger.light,  text: colors.danger.DEFAULT  },
 };
 
-// For BP-like metrics: "up" is bad (danger), "down" is good (success)
-// We use "changeDir" to determine color: up=danger, down=success, neutral=muted
 const CHANGE_COLORS = {
   up:      colors.danger.DEFAULT,
   down:    colors.success.DEFAULT,
   neutral: colors.text.muted,
 };
 
-export default function MetricCard({ card, width, index = 0 }: { card: MetricCardData; width: number; index?: number }) {
+export default function MetricCard({
+  card,
+  width,
+  index = 0,
+}: {
+  card: MetricCardData;
+  width: number;
+  index?: number;
+}) {
   const sc = STATUS_COLORS[card.status];
   const scale = useSharedValue(1);
   const pressStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   const changeColor = CHANGE_COLORS[card.changeDir];
   const ChangeIcon =
-    card.changeDir === "up"
-      ? TrendingUp
-      : card.changeDir === "down"
-      ? TrendingDown
-      : Minus;
+    card.changeDir === "up" ? TrendingUp : card.changeDir === "down" ? TrendingDown : Minus;
   const Icon = card.icon;
 
   return (
-    <Animated.View
-      entering={FadeInRight.duration(250).delay(index * 80)}
-      style={pressStyle}
-    >
-    <Pressable
-      style={[s.card, { width, borderLeftColor: sc.border }]}
-      onPressIn={() => { scale.value = withTiming(0.97, { duration: 100 }); }}
-      onPressOut={() => { scale.value = withTiming(1, { duration: 150 }); }}
-    >
-      <View style={s.row1}>
-        <Icon size={20} color={sc.icon} strokeWidth={1.8} />
-        <View style={s.changeWrap}>
-          <ChangeIcon size={14} color={changeColor} strokeWidth={2} />
-          <Text style={[s.changeText, { color: changeColor }]}>{card.change}</Text>
+    <Animated.View entering={FadeInRight.duration(250).delay(index * 80)} style={pressStyle}>
+      <Pressable
+        style={[s.card, { width }]}
+        onPressIn={() => { scale.value = withTiming(0.97, { duration: 100 }); }}
+        onPressOut={() => { scale.value = withTiming(1, { duration: 150 }); }}
+      >
+        {/* Top: Icon tile + Title */}
+        <View style={s.header}>
+          <View style={[s.iconTile, { backgroundColor: sc.bg }]}>
+            <Icon size={18} color={sc.accent} strokeWidth={2} />
+          </View>
+          <Text style={s.title} numberOfLines={1}>
+            {card.title}
+          </Text>
         </View>
-      </View>
 
-      <View style={s.row2}>
-        <Text style={s.value}>{card.value}</Text>
-        <Text style={s.unit}>{card.unit}</Text>
-      </View>
+        {/* Middle: Large value */}
+        <View style={s.valueRow}>
+          <Text style={s.value} numberOfLines={1} adjustsFontSizeToFit>
+            {card.value}
+          </Text>
+          <Text style={s.unit}>{card.unit}</Text>
+        </View>
 
-      <SparklineChart data={card.sparklineData} color={sc.border} height={32} />
-
-      <View style={[s.badge, { backgroundColor: sc.bg }]}>
-        <Text style={[s.badgeText, { color: sc.text }]}>{card.statusLabel}</Text>
-      </View>
-
-      <Text style={s.title} numberOfLines={1}>{card.title}</Text>
-    </Pressable>
+        {/* Bottom: Status badge + change */}
+        <View style={s.footer}>
+          <View style={[s.badge, { backgroundColor: sc.bg }]}>
+            <View style={[s.dot, { backgroundColor: sc.accent }]} />
+            <Text style={[s.badgeText, { color: sc.text }]}>{card.statusLabel}</Text>
+          </View>
+          <View style={s.changeWrap}>
+            <ChangeIcon size={12} color={changeColor} strokeWidth={2.2} />
+            <Text style={[s.changeText, { color: changeColor }]}>{card.change}</Text>
+          </View>
+        </View>
+      </Pressable>
     </Animated.View>
   );
 }
@@ -88,32 +95,51 @@ const s = StyleSheet.create({
   card: {
     backgroundColor: colors.surface.card,
     borderRadius: radius.lg,
-    padding: 16,
-    borderLeftWidth: 3,
-    gap: 8,
-    minWidth: 140,
+    padding: 14,
+    gap: 10,
     ...shadows.card,
   },
-  row1: {
+  header: { flexDirection: "row", alignItems: "center", gap: 8 },
+  iconTile: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  title: {
+    fontSize: fontSizes.xs,
+    fontFamily: fonts.medium,
+    color: colors.text.secondary,
+    flex: 1,
+  },
+  valueRow: { flexDirection: "row", alignItems: "baseline", gap: 4 },
+  value: {
+    fontFamily: fonts.bold,
+    fontSize: 26,
+    color: colors.text.DEFAULT,
+    letterSpacing: -0.5,
+  },
+  unit: {
+    fontSize: fontSizes.xs,
+    color: colors.text.muted,
+    fontFamily: fonts.regular,
+  },
+  footer: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-  changeWrap: { flexDirection: "row", alignItems: "center", gap: 2 },
-  changeText: { fontFamily: fonts.mono, fontSize: fontSizes.xs },
-  row2: { flexDirection: "row", alignItems: "baseline", gap: 4 },
-  value: {
-    fontFamily: fonts.bold,
-    fontSize: fontSizes["2xl"],
-    color: colors.text.DEFAULT,
-  },
-  unit: { fontSize: fontSizes.xs, color: colors.text.muted, fontFamily: fonts.regular },
   badge: {
-    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
     borderRadius: 9999,
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
-  badgeText: { fontSize: 10, fontFamily: fonts.medium },
-  title: { fontSize: fontSizes.xs, color: colors.text.secondary, fontFamily: fonts.medium },
+  dot: { width: 6, height: 6, borderRadius: 3 },
+  badgeText: { fontSize: 10, fontFamily: fonts.semibold },
+  changeWrap: { flexDirection: "row", alignItems: "center", gap: 2 },
+  changeText: { fontFamily: fonts.mono, fontSize: 11 },
 });

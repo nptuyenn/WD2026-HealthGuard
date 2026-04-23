@@ -50,7 +50,7 @@ const QRShareSheet = forwardRef<BottomSheet, Props>(({ publicToken }, ref) => {
 
   const handleDownload = async () => {
     try {
-      const { status } = await MediaLibrary.requestPermissionsAsync();
+      const { status } = await MediaLibrary.requestPermissionsAsync(false, ["photo"]);
       if (status !== "granted") {
         Alert.alert("Cần quyền truy cập", "Vui lòng cấp quyền lưu ảnh vào thư viện.");
         return;

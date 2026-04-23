@@ -10,7 +10,7 @@ import {
   type MetricType,
 } from "@/lib/health-metrics-api";
 
-const CARD_WIDTH = 148;
+const CARD_WIDTH = 170;
 
 const ICONS: Record<MetricType, MetricCardData["icon"]> = {
   blood_pressure: Heart,
